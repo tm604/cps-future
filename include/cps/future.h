@@ -18,9 +18,11 @@
 
 #include <vector>
 
-class Future : public std::enable_shared_from_this<Future> {
+namespace cps {
+
+class future : public std::enable_shared_from_this<future> {
 public:
-	typedef std::shared_ptr<Future>  ptr;
+	typedef std::shared_ptr<future>  ptr;
 	typedef std::function<ptr(ptr)>  seq;
 	typedef std::function<void(ptr)> evt;
 	enum state {
@@ -30,14 +32,17 @@ public:
 		complete
 	};
 
-	Future() {
-#ifdef FUTURE_TRACE
-		std::cout << " Future()" << std::endl;
+	future(
+	):state_{pending}
+	{
+#if FUTURE_TRACE
+		std::cout << " future()" << std::endl;
 #endif
 	}
-virtual ~Future() {
-#ifdef FUTURE_TRACE
-		std::cout << "~Future() " << describe_state() << std::endl;
+
+virtual ~future() {
+#if FUTURE_TRACE
+		std::cout << "~future() " << describe_state() << std::endl;
 #endif
 	}
 
@@ -49,14 +54,14 @@ virtual ~Future() {
 		case cancelled: return "cancelled";
 		case failed: return "failed";
 		case complete: return "complete";
-		default: return "unknown";
+		default: return "unknown (" + std::to_string((int)state_) + ")";
 		}
 	}
 
 	static
 	ptr
 	create() {
-		struct accessor : public Future { };
+		struct accessor : public future { };
 		return std::make_shared<accessor>();
 	}
 
@@ -67,7 +72,7 @@ virtual ~Future() {
 
 	ptr done() {
 		auto self = shared_from_this();
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 		std::cout << " ->done() was " << describe_state() << std::endl;
 #endif
 		state_ = complete;
@@ -77,7 +82,7 @@ virtual ~Future() {
 			auto copy = on_done_;
 			on_done_.clear();
 			for(auto &it : copy) {
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 				std::cout << "trying handler " << (void*)(&it) << std::endl;
 #endif
 				try {
@@ -89,7 +94,7 @@ virtual ~Future() {
 					throw;
 				}
 			}
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 			std::cout << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << std::endl;
 #endif
 		}
@@ -115,7 +120,7 @@ virtual ~Future() {
 	}
 
 	ptr propagate(ptr f) {
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 		std::cout << "propagating " << f->describe_state() << " from " << describe_state() << std::endl;
 #endif
 		on_done([f](ptr) {
@@ -135,53 +140,75 @@ virtual ~Future() {
 	};
 
 	static
-	Future::ptr
-	repeat(std::function<bool(Future::ptr)> check, std::function<Future::ptr(Future::ptr)> each) {
-		auto f = Future::create();
-		auto next = Future::create();
+	future::ptr
+	repeat(std::function<bool(future::ptr)> check, std::function<future::ptr(future::ptr)> each) {
+		auto f = future::create();
+		// Keep f around until it's finished
+		f->on_ready([f](ptr in) { });
+
+		auto next = future::create();
 		next->done();
-		std::shared_ptr<std::function<Future::ptr(Future::ptr)>> code = std::make_shared<std::function<Future::ptr(Future::ptr)>>([f, check, code, each] (Future::ptr in) mutable -> Future::ptr {
-#ifdef FUTURE_TRACE
+		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
+#if FUTURE_TRACE
 			std::cout << "Entering code() with " << (void*)(&(*code)) << std::endl;
 #endif
-			std::function<Future::ptr(Future::ptr)> recurse;
-			recurse = [&,f](Future::ptr in) -> Future::ptr {
+			std::function<future::ptr(future::ptr)> recurse;
+			recurse = [&,f](future::ptr in) -> future::ptr {
+#if FUTURE_TRACE
+				std::cout << "Entering recursion with " << f->describe_state() << std::endl;
+#endif
 				if(f->is_ready()) return f;
-				if(check(in)) return f->done();
+
+				{
+					bool status = check(in);
+#if FUTURE_TRACE
+					std::cout << "Check returns " << status << std::endl;
+#endif
+					if(status) {
+#if FUTURE_TRACE
+						std::cout << "And we are done" << std::endl;
+#endif
+						return f->done();
+					}
+				}
+
 				auto e = each(in);
-				return e->then([f, &recurse](Future::ptr in) -> Future::ptr {
-#ifdef FUTURE_TRACE
+				return e->then([f, &recurse](future::ptr in) -> future::ptr {
+#if FUTURE_TRACE
 					std::cout << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << std::endl;
 #endif
 					auto v = recurse(in);
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 					std::cout << "v was " << v << std::endl;
 #endif
 					return v;
-				})->on_fail([f](Future::ptr in) {
+				})->on_fail([f](future::ptr in) {
 					in->propagate(f);
-				})->on_cancel([f](Future::ptr) {
+				})->on_cancel([f](future::ptr) {
 					f->fail("cancelled");
 				});
 			};
 			return recurse(in);
 		});
+#if FUTURE_TRACE
+		std::cout << "Calling next" << std::endl;
+#endif
 		next = (*code)(next);
-		f->on_ready([code](Future::ptr) -> Future::ptr { return Future::create()->done(); });
+		f->on_ready([code](future::ptr) -> future::ptr { return future::create()->done(); });
 		return f;
 	}
 
 	static ptr needs_all(std::vector<ptr> pending) {
-		auto f = Future::create();
+		auto f = future::create();
 		auto count = std::make_shared<std::atomic<int>>();
 		auto p = std::make_shared<std::vector<ptr>>(std::move(pending));
 		*count = pending.size();
 		auto h = [f, count]() {
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 			std::cout << "as " << f->describe_state() << " with count = " << *count << std::endl;
 #endif
 			if(0 == --*count && !f->is_ready()) f->done();
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 			std::cout << "now " << f->describe_state() << " with count = " << *count << std::endl;
 #endif
 		};
@@ -189,14 +216,14 @@ virtual ~Future() {
 			if(f->is_ready()) return;
 			h();
 		};
-		auto fail = [h, p, f](Future::ptr in) {
+		auto fail = [h, p, f](future::ptr in) {
 			if(f->is_ready()) return;
 			for(auto &it : *p) {
 				if(!it->is_ready()) it->cancel();
 			}
 			in->propagate(f);
 		};
-		auto can = [h, p, f](Future::ptr in) {
+		auto can = [h, p, f](future::ptr in) {
 			if(f->is_ready()) return;
 
 			for(auto &it : *p) {
@@ -258,24 +285,30 @@ public:
 		}
 	}
 
-	static ptr complete_future() { auto f = Future::create(); f->done(); return f; }
+	static ptr complete_future() { auto f = future::create(); f->done(); return f; }
 
 	ptr then(seq ok) {
 		auto self = shared_from_this();
 		auto f = create();
 		on_done([self, ok, f](ptr in) -> void {
+#if FUTURE_TRACE
 			std::cout << "Marking me as done" << std::endl;
+#endif
 			if(f->is_ready()) return;
 			auto s = ok(self);
 			s->propagate(f);
 		});
 		on_fail([self, f](ptr in) -> void {
+#if FUTURE_TRACE
 			std::cout << "Marking me as failed" << std::endl;
+#endif
 			if(f->is_ready()) return;
 			f->fail(self);
 		});
 		on_cancel([f](ptr in) -> void {
+#if FUTURE_TRACE
 			std::cout << "Marking me as cancelled" << std::endl;
+#endif
 			if(f->is_ready()) return;
 			f->cancel();
 		});
@@ -316,7 +349,7 @@ public:
 	}
 
 	ptr then(seq ok, seq fail) {
-		auto f = Future::create();
+		auto f = future::create();
 		if(ok != nullptr) {
 			then_.push_back(ok);
 		}
@@ -332,46 +365,47 @@ public:
 	std::string failure() const { return reason_; }
 
 protected:
+	state state_;
+
 	std::vector<seq> then_;
 	std::vector<seq> else_;
 	std::vector<evt> on_done_;
 	std::vector<evt> on_fail_;
 	std::vector<evt> on_cancel_;
 
-	state state_;
 	std::string reason_;
 };
 
 template<typename T>
-class FutureItem : public Future {
+class future_item : public future {
 public:
 	static
-	std::shared_ptr<Future>
+	std::shared_ptr<future>
 	create() {
-		struct accessor : public FutureItem<T> { };
+		struct accessor : public future_item<T> { };
 		return std::make_shared<accessor>();
 	}
 
 private:
-	FutureItem(
+	future_item(
 	)
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 	 :item_type_{ item_type() }
 #endif
 	{
-#ifdef FUTURE_TRACE
-		std::cout << " FutureItem<" << item_type_ << ">()" << std::endl;
+#if FUTURE_TRACE
+		std::cout << " future_item<" << item_type_ << ">()" << std::endl;
 #endif
 	}
 
-virtual ~FutureItem() {
-#ifdef FUTURE_TRACE
-		std::cout << "~FutureItem<" << item_type_ << ">() " << describe_state() << std::endl;
+virtual ~future_item() {
+#if FUTURE_TRACE
+		std::cout << "~future_item<" << item_type_ << ">() " << describe_state() << std::endl;
 #endif
 	}
 
 private:
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 	std::string item_type() const {
 		char * name = 0;
 		int status;
@@ -386,7 +420,10 @@ private:
 
 private:
 	T value_;
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 	std::string item_type_;
 #endif
 };
+
+};
+
