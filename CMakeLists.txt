@@ -28,8 +28,8 @@ endif()
 target_link_libraries(future_tests ${Boost_LIBRARIES})
 
 install(
-	FILES include/Future.h
-	DESTINATION "include"
+	FILES include/cps/future.h
+	DESTINATION "include/cps"
 )
 
 include (CTest)
