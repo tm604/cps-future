@@ -1,10 +1,15 @@
-#define FUTURE_TRACE
+#pragma once
+
+#ifndef FUTURE_TRACE
+#define FUTURE_TRACE 0
+#endif // FUTURE_TRACE
+
 #include <memory>
 #include <atomic>
 
 #include <string>
 
-#ifdef FUTURE_TRACE
+#if FUTURE_TRACE
 #include <iostream>
 #include <iomanip>
 #include <typeinfo>
