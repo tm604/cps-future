@@ -22,14 +22,41 @@ namespace cps {
 
 class future : public std::enable_shared_from_this<future> {
 public:
+	/** A std::shared_ptr to a cps::future */
 	typedef std::shared_ptr<future>  ptr;
+	/** A sequence callback (then, else, etc.) */
 	typedef std::function<ptr(ptr)>  seq;
+	/** A one-shot callback (on_done, on_fail etc.) */
 	typedef std::function<void(ptr)> evt;
+
 	enum state {
 		pending,
 		cancelled,
 		failed,
 		complete
+	};
+
+	class ready_exception : public std::runtime_error {
+	public:
+		ready_exception(
+		):std::runtime_error{ "cps::future is not ready" }
+		{
+		}
+	};
+	class cancel_exception : public std::runtime_error {
+	public:
+		cancel_exception(
+		):std::runtime_error{ "cps::future is cancelled" }
+		{
+		}
+	};
+	class fail_exception : public std::runtime_error {
+	public:
+		fail_exception(
+			cps::future &f
+		):std::runtime_error{ f.failure() }
+		{
+		}
 	};
 
 	future(
@@ -376,31 +403,42 @@ protected:
 	std::string reason_;
 };
 
+/** A subclass of cps::future which can also store a value */
 template<typename T>
-class future_item : public future {
+class typed_future : public future {
 public:
 	static
 	std::shared_ptr<future>
 	create() {
-		struct accessor : public future_item<T> { };
+		struct accessor : public typed_future<T> { };
 		return std::make_shared<accessor>();
 	}
 
+	T &get() const {
+		if(!is_ready())
+			throw ready_exception();
+		if(is_failed())
+			throw fail_exception(*this);
+		if(is_cancelled())
+			throw cancel_exception();
+		return value_;
+	}
+
 private:
-	future_item(
+	typed_future(
 	)
 #if FUTURE_TRACE
 	 :item_type_{ item_type() }
 #endif
 	{
 #if FUTURE_TRACE
-		std::cout << " future_item<" << item_type_ << ">()" << std::endl;
+		std::cout << " typed_future<" << item_type_ << ">()" << std::endl;
 #endif
 	}
 
-virtual ~future_item() {
+virtual ~typed_future() {
 #if FUTURE_TRACE
-		std::cout << "~future_item<" << item_type_ << ">() " << describe_state() << std::endl;
+		std::cout << "~typed_future<" << item_type_ << ">() " << describe_state() << std::endl;
 #endif
 	}
 
