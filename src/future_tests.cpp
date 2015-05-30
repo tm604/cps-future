@@ -1,5 +1,9 @@
-#define BOOST_TEST_MODULE FutureTests
-#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MAIN
+#if !defined( WIN32 )
+    #define BOOST_TEST_DYN_LINK
+#endif
+#define BOOST_TEST_MODULE TypedFutureTests
+
 #include <boost/test/unit_test.hpp>
 
 #define FUTURE_TRACE 1

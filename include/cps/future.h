@@ -53,8 +53,8 @@ public:
 	class fail_exception : public std::runtime_error {
 	public:
 		fail_exception(
-			cps::future &f
-		):std::runtime_error{ f.failure() }
+			const std::string &msg
+		):std::runtime_error{ msg }
 		{
 		}
 	};
@@ -408,20 +408,52 @@ template<typename T>
 class typed_future : public future {
 public:
 	static
-	std::shared_ptr<future>
+	std::shared_ptr<typed_future<T>>
 	create() {
 		struct accessor : public typed_future<T> { };
 		return std::make_shared<accessor>();
 	}
 
-	T &get() const {
+	const T &get() const {
 		if(!is_ready())
 			throw ready_exception();
 		if(is_failed())
-			throw fail_exception(*this);
+			throw fail_exception(failure());
 		if(is_cancelled())
 			throw cancel_exception();
 		return value_;
+	}
+
+	ptr done(const T &v) {
+		auto self = shared_from_this();
+#if FUTURE_TRACE
+		std::cout << " ->done() was " << describe_state() << std::endl;
+#endif
+		value_ = v;
+		state_ = complete;
+		on_fail_.clear();
+		on_cancel_.clear();
+		while(!on_done_.empty()) {
+			auto copy = on_done_;
+			on_done_.clear();
+			for(auto &it : copy) {
+#if FUTURE_TRACE
+				std::cout << "trying handler " << (void*)(&it) << std::endl;
+#endif
+				try {
+					(it)(self);
+				} catch(std::string ex) {
+					std::cerr << "Exception in callback - " << ex << std::endl;
+				} catch(...) {
+					std::cerr << "Unknown exception in callback" << std::endl;
+					throw;
+				}
+			}
+#if FUTURE_TRACE
+			std::cout << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << std::endl;
+#endif
+		}
+		return self;
 	}
 
 private:
