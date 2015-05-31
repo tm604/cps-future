@@ -156,6 +156,9 @@ virtual ~future() {
 		}
 	}
 
+	/**
+	 * Creates a new shared_ptr<future>.
+	 */
 	static
 	ptr
 	create() {
@@ -163,6 +166,10 @@ virtual ~future() {
 		return std::make_shared<accessor>();
 	}
 
+	/**
+	 * Marks this future as done.
+	 * Subclasses should override this to accept a value.
+	 */
 	ptr done() {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
@@ -214,6 +221,10 @@ virtual ~future() {
 		return self;
 	}
 
+	/**
+	 * Attaches this future to another future, so that we get resolved with
+	 * the same state as the other future.
+	 */
 	ptr propagate(ptr f) {
 #if FUTURE_TRACE
 		TRACE << "propagating " << f->describe_state() << " from " << describe_state() << " on " << label_;
@@ -229,10 +240,6 @@ virtual ~future() {
 		});
 		return f;
 	}
-
-	class iterator {
-	public:
-	};
 
 	static
 	future::ptr
