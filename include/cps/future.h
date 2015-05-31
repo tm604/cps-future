@@ -83,7 +83,21 @@ public:
 	};
 
 	future(
-	):state_{pending}
+		const std::string &label
+	):state_{pending},
+	  label_(label),
+#if FUTURE_TIMERS
+	 ,created_(boost::chrono::high_resolution_clock::now())
+#endif // FUTURE_TIMERS
+	{
+#if FUTURE_TRACE
+		TRACE << " future(" << label_ << ")";
+#endif
+	}
+
+	future(
+	):state_{pending},
+	  label_(),
 #if FUTURE_TIMERS
 	 ,created_(boost::chrono::high_resolution_clock::now())
 #endif // FUTURE_TIMERS
@@ -102,7 +116,7 @@ public:
 
 virtual ~future() {
 #if FUTURE_TRACE
-		TRACE << "~future() " << describe_state();
+		TRACE << "~future(" << label_ << ") " << describe_state();
 #endif
 	}
 
@@ -140,7 +154,7 @@ virtual ~future() {
 	ptr done() {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		TRACE << " ->done() was " << describe_state();
+		TRACE << " ->done() was " << describe_state() << " on " << label_;
 #endif
 		mark_ready(complete);
 		on_fail_.clear();
@@ -150,7 +164,7 @@ virtual ~future() {
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				TRACE << "trying handler " << (void*)(&it);
+				TRACE << "trying handler " << (void*)(&it) << " on " << label_;
 #endif
 				try {
 					(it)();
@@ -162,7 +176,7 @@ virtual ~future() {
 				}
 			}
 #if FUTURE_TRACE
-			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << " on " << label_;
 #endif
 		}
 		return self;
@@ -189,7 +203,7 @@ virtual ~future() {
 
 	ptr propagate(ptr f) {
 #if FUTURE_TRACE
-		TRACE << "propagating " << f->describe_state() << " from " << describe_state();
+		TRACE << "propagating " << f->describe_state() << " from " << describe_state() << " on " << label_;
 #endif
 		on_done([f](ptr) {
 			f->done();
@@ -218,23 +232,23 @@ virtual ~future() {
 		next->done();
 		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
 #if FUTURE_TRACE
-			TRACE << "Entering code() with " << (void*)(&(*code));
+			TRACE << "Entering code() with " << (void*)(&(*code)) << " on " << label_;
 #endif
 			std::function<future::ptr(future::ptr)> recurse;
 			recurse = [&,f](future::ptr in) -> future::ptr {
 #if FUTURE_TRACE
-				TRACE << "Entering recursion with " << f->describe_state();
+				TRACE << "Entering recursion with " << f->describe_state() << " on " << label_;
 #endif
 				if(f->is_ready()) return f;
 
 				{
 					bool status = check(in);
 #if FUTURE_TRACE
-					TRACE << "Check returns " << status;
+					TRACE << "Check returns " << status << " on " << label_;
 #endif
 					if(status) {
 #if FUTURE_TRACE
-						TRACE << "And we are done";
+						TRACE << "And we are done" << " on " << label_;
 #endif
 						return f->done();
 					}
@@ -243,11 +257,11 @@ virtual ~future() {
 				auto e = each(in);
 				return e->then([f, &recurse](future::ptr in) -> future::ptr {
 #if FUTURE_TRACE
-					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state();
+					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << " on " << label_;
 #endif
 					auto v = recurse(in);
 #if FUTURE_TRACE
-					TRACE << "v was " << v;
+					TRACE << "v was " << v << " on " << label_;
 #endif
 					return v;
 				})->on_fail([f](future::ptr in) {
@@ -259,7 +273,7 @@ virtual ~future() {
 			return recurse(in);
 		});
 #if FUTURE_TRACE
-		TRACE << "Calling next";
+		TRACE << "Calling next" << " on " << label_;
 #endif
 		next = (*code)(next);
 		f->on_ready([code](future::ptr) -> future::ptr { return create()->done(); });
@@ -273,11 +287,11 @@ virtual ~future() {
 		*count = pending.size();
 		auto h = [f, count]() {
 #if FUTURE_TRACE
-			TRACE << "as " << f->describe_state() << " with count = " << *count;
+			TRACE << "as " << f->describe_state() << " with count = " << *count << " on " << label_;
 #endif
 			if(0 == --*count && !f->is_ready()) f->done();
 #if FUTURE_TRACE
-			TRACE << "now " << f->describe_state() << " with count = " << *count;
+			TRACE << "now " << f->describe_state() << " with count = " << *count << " on " << label_;
 #endif
 		};
 		auto ok = [f, h]() {
@@ -360,7 +374,7 @@ public:
 		auto f = create();
 		on_done([self, ok, f](ptr in) -> void {
 #if FUTURE_TRACE
-			TRACE << "Marking me as done";
+			TRACE << "Marking me as done" << " on " << label_;
 #endif
 			if(f->is_ready()) return;
 			auto s = ok(self);
@@ -368,14 +382,14 @@ public:
 		});
 		on_fail([self, f](ptr in) -> void {
 #if FUTURE_TRACE
-			TRACE << "Marking me as failed";
+			TRACE << "Marking me as failed" << " on " << label_;
 #endif
 			if(f->is_ready()) return;
 			f->fail(self);
 		});
 		on_cancel([f](ptr in) -> void {
 #if FUTURE_TRACE
-			TRACE << "Marking me as cancelled";
+			TRACE << "Marking me as cancelled" << " on " << label_;
 #endif
 			if(f->is_ready()) return;
 			f->cancel();
@@ -434,6 +448,7 @@ public:
 
 protected:
 	std::atomic<state> state_;
+	std::string label_;
 
 #if FUTURE_TIMERS
 	checkpoint created_;
@@ -475,7 +490,7 @@ public:
 	ptr done(const T &v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		TRACE << " ->done() was " << describe_state();
+		TRACE << " ->done() was " << describe_state() << " on " << label_;
 #endif
 		value_ = v;
 		state_ = complete;
@@ -486,7 +501,7 @@ public:
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				TRACE << "trying handler " << (void*)(&it);
+				TRACE << "trying handler " << (void*)(&it) << " on " << label_;
 #endif
 				try {
 					(it)(self);
@@ -498,7 +513,7 @@ public:
 				}
 			}
 #if FUTURE_TRACE
-			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << " on " << label_;
 #endif
 		}
 		return self;
@@ -512,13 +527,13 @@ private:
 #endif
 	{
 #if FUTURE_TRACE
-		TRACE << " typed_future<" << item_type_ << ">()";
+		TRACE << " typed_future<" << item_type_ << ">()" << " on " << label_;
 #endif
 	}
 
 virtual ~typed_future() {
 #if FUTURE_TRACE
-		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state();
+		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state() << " on " << label_;
 #endif
 	}
 
@@ -566,7 +581,7 @@ public:
 	ptr done(const T v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		TRACE << " ->done() was " << describe_state();
+		TRACE << " ->done() was " << describe_state() << " on " << label_;
 #endif
 		value_ = v;
 		state_ = complete;
@@ -577,7 +592,7 @@ public:
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				TRACE << "trying handler " << (void*)(&it);
+				TRACE << "trying handler " << (void*)(&it) << " on " << label_;
 #endif
 				try {
 					(it)(self);
@@ -589,7 +604,7 @@ public:
 				}
 			}
 #if FUTURE_TRACE
-			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << " on " << label_;
 #endif
 		}
 		return self;
@@ -603,13 +618,13 @@ private:
 #endif
 	{
 #if FUTURE_TRACE
-		TRACE << " typed_future<" << item_type_ << ">()";
+		TRACE << " typed_future<" << item_type_ << ">()" << " on " << label_;
 #endif
 	}
 
 virtual ~typed_future() {
 #if FUTURE_TRACE
-		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state();
+		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state() << " on " << label_;
 #endif
 	}
 
