@@ -73,17 +73,20 @@ public:
 			std::shared_ptr<std::exception> e,
 			const std::string &component
 		):ex_(),
-		  component_(component)
+		  component_(component),
+		  reason_(u8"unknown")
 		{
 		}
 
 		virtual ~exception() { }
 
 		std::exception &ex() const { return *ex_; }
+		const std::string &reason() const { return reason_; }
 
 	private:
 		std::shared_ptr<std::exception> ex_;
 		std::string component_;
+		std::string reason_;
 	};
 
 	class ready_exception : public std::runtime_error {
