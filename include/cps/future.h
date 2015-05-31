@@ -201,16 +201,52 @@ virtual ~future() {
 		return self;
 	}
 
-	ptr fail(std::string ex) {
-		reason_ = ex;
+	/**
+	 * Marks this future as failed.
+	 */
+	ptr fail(
+		exception &ex
+	) {
+		ex_ = std::unique_ptr<exception>(new exception(ex));
 		return fail();
 	}
 
-	ptr fail(ptr f) {
-		reason_ = "sequence";
+	/**
+	 * Marks this future as failed.
+	 */
+	ptr fail(
+		std::shared_ptr<std::exception> ex,
+		const std::string &component = u8"unknown"
+	) {
+		ex_ = std::unique_ptr<exception>(
+			new exception(
+			ex,
+			component
+			)
+		);
 		return fail();
 	}
 
+	/**
+	 * Marks this future as failed.
+	 */
+	ptr fail(
+		const std::string &ex,
+		const std::string &component = u8"unknown"
+	) {
+		ex_ = std::unique_ptr<exception>(
+			new exception(
+				std::make_shared<fail_exception>(ex),
+				component
+			)
+		);
+		return fail();
+	}
+
+	/**
+	 * Adds code to the list of things that should be called when this future
+	 * resolves, regardless of state.
+	 */
 	ptr on_ready(std::function<void(ptr)> code) {
 		auto self = shared_from_this();
 		auto handler = [self, code]() { code(self); };
@@ -252,40 +288,40 @@ virtual ~future() {
 		next->done();
 		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
 #if FUTURE_TRACE
-			TRACE << "Entering code() with " << (void*)(&(*code)) << " on " << label_;
+			TRACE << "Entering code() with " << (void*)(&(*code));
 #endif
 			std::function<future::ptr(future::ptr)> recurse;
 			recurse = [&,f](future::ptr in) -> future::ptr {
 #if FUTURE_TRACE
-				TRACE << "Entering recursion with " << f->describe_state() << " on " << label_;
+				TRACE << "Entering recursion with " << f->describe_state() << " on " << f->label_;
 #endif
 				if(f->is_ready()) return f;
 
 				{
 					bool status = check(in);
 #if FUTURE_TRACE
-					TRACE << "Check returns " << status << " on " << label_;
+					TRACE << "Check returns " << status;
 #endif
 					if(status) {
 #if FUTURE_TRACE
-						TRACE << "And we are done" << " on " << label_;
+						TRACE << "And we are done";
 #endif
 						return f->done();
 					}
 				}
 
-				auto e = each(in);
-				return e->then([f, &recurse](future::ptr in) -> future::ptr {
+				in = each(in);
+				return in->then([f, in, &recurse]() -> future::ptr {
 #if FUTURE_TRACE
-					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << " on " << label_;
+					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << " on " << f->label_;
 #endif
 					auto v = recurse(in);
 #if FUTURE_TRACE
-					TRACE << "v was " << v << " on " << label_;
+					TRACE << "v was " << v << " on " << f->label_;
 #endif
 					return v;
-				})->on_fail([f](future::ptr in) {
-					in->propagate(f);
+				})->on_fail([f](exception &ex) {
+					f->fail(ex);
 				})->on_cancel([f](future::ptr) {
 					f->fail("cancelled");
 				});
@@ -293,7 +329,7 @@ virtual ~future() {
 			return recurse(in);
 		});
 #if FUTURE_TRACE
-		TRACE << "Calling next" << " on " << label_;
+		TRACE << "Calling next";
 #endif
 		next = (*code)(next);
 		f->on_ready([code](future::ptr) -> future::ptr { return create()->done(); });
@@ -488,7 +524,7 @@ protected:
 	std::vector<std::function<void(exception &)>> on_fail_;
 	std::vector<std::function<void()>> on_cancel_;
 
-	std::string reason_;
+	std::unique_ptr<exception> ex_;
 };
 
 /**
