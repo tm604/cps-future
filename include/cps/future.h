@@ -58,10 +58,20 @@ public:
 	class exception {
 	public:
 		exception(
-			std::exception &e,
+			std::shared_ptr<std::exception> e,
 			std::string component
-		):ex_(e),component_(component) { }
+		):ex_(),
+		  component_(component)
+		{
+		}
+
 		virtual ~exception() { }
+
+		std::exception &ex() const { return *ex_; }
+
+	private:
+		std::shared_ptr<std::exception> ex_;
+		std::string component_;
 	};
 
 	class ready_exception : public std::runtime_error {
