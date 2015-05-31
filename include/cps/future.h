@@ -448,14 +448,14 @@ public:
 			auto s = ok();
 			s->propagate(f);
 		});
-		on_fail([self, f](ptr in) -> void {
+		on_fail([self, f](exception &ex) {
 #if FUTURE_TRACE
 			TRACE << "Marking me as failed" << " on " << self->label_;
 #endif
 			if(f->is_ready()) return;
-			f->fail(self);
+			f->fail(ex);
 		});
-		on_cancel([f](ptr in) -> void {
+		on_cancel([self, f]() {
 #if FUTURE_TRACE
 			TRACE << "Marking me as cancelled" << " on " << self->label_;
 #endif
@@ -471,7 +471,7 @@ public:
 			on_done_.push_back(code);
 			return self;
 		} 
-		if(is_done()) code(self);
+		if(is_done()) code();
 		return self;
 	}
 
@@ -481,7 +481,7 @@ public:
 			on_cancel_.push_back(code);
 			return self;
 		} 
-		if(is_cancelled()) code(self);
+		if(is_cancelled()) code();
 		return self;
 	}
 
@@ -491,7 +491,7 @@ public:
 			on_fail_.push_back(code);
 			return self;
 		} 
-		if(is_failed()) code(self);
+		if(is_failed()) code(*ex_);
 		return self;
 	}
 
