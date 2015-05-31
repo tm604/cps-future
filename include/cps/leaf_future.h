@@ -10,8 +10,12 @@ namespace cps {
 template<typename T>
 class leaf_future : public base_future {
 public:
+	typedef std::shared_ptr<leaf_future<T>> ptr;
+
+	virtual const base_future::future_type type() const { return base_future::leaf; }
+
 	static
-	std::shared_ptr<leaf_future<T>>
+	ptr
 	create() {
 		struct accessor : public leaf_future<T> { };
 		return std::make_shared<accessor>();
@@ -28,7 +32,7 @@ public:
 	}
 
 	ptr done(const T &v) {
-		auto self = shared_from_this();
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
 #if FUTURE_TRACE
 		TRACE << " ->done() was " << describe_state() << " on " << label_;
 #endif
@@ -76,6 +80,46 @@ virtual ~leaf_future() {
 		TRACE << "~leaf_future<" << item_type_ << ">() " << describe_state() << " on " << label_;
 #endif
 	}
+
+public:
+	base_future::ptr
+	then(
+		/** Chained handler for dealing with success */
+		std::function<base_future::ptr(const T &)> ok,
+		/** Optional chained handler for when we fail */
+		std::function<base_future::ptr(base_future::exception &)> err = nullptr
+	) {
+		// std::shared_ptr<leaf_future<T>> self = shared_from_this();
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
+		auto f = base_future::create();
+		on_done([self, ok, f]() {
+#if FUTURE_TRACE
+			TRACE << "Marking me as done" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			auto s = ok(self->get());
+			s->propagate(f);
+		});
+		on_fail([self, err, f](exception &ex) {
+#if FUTURE_TRACE
+			TRACE << "Marking me as failed" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			if(err)
+				err(ex)->propagate(f);
+			else
+				f->fail(ex);
+		});
+		on_cancel([self, f]() {
+#if FUTURE_TRACE
+			TRACE << "Marking me as cancelled" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			f->cancel();
+		});
+		return f;
+	}
+
 
 private:
 #if FUTURE_TRACE

@@ -23,6 +23,8 @@
 
 namespace cps {
 
+template<typename T> class leaf_future;
+
 /**
  * Deferred result handling.
  * This class provides the base implementation for the "future" deferred-task concept.
@@ -45,6 +47,24 @@ public:
 		complete
 	};
 
+	enum future_type {
+		base,
+		sequence,
+		leaf
+	};
+
+	template<typename U>
+	std::shared_ptr<leaf_future<U>>
+	as()
+	{
+		if(type() != leaf)
+			throw type_exception();
+
+		return std::dynamic_pointer_cast<leaf_future<U>>(shared_from_this());
+	}
+
+	virtual const future_type type() const { return base; }
+
 	/** Holds information about a failure */
 	class exception {
 	public:
@@ -66,6 +86,14 @@ public:
 		std::shared_ptr<std::exception> ex_;
 		std::string component_;
 		std::string reason_;
+	};
+
+	class type_exception : public std::runtime_error {
+	public:
+		type_exception(
+		):std::runtime_error{ "cps::future is the wrong type" }
+		{
+		}
 	};
 
 	class ready_exception : public std::runtime_error {
