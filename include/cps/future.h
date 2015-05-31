@@ -103,7 +103,7 @@ public:
 	future(
 		const std::string &label
 	):state_{pending},
-	  label_(label),
+	  label_(label)
 #if FUTURE_TIMERS
 	 ,created_(boost::chrono::high_resolution_clock::now())
 #endif // FUTURE_TIMERS
@@ -116,7 +116,7 @@ public:
 	/** Instantiates a future with no label */
 	future(
 	):state_{pending},
-	  label_(),
+	  label_()
 #if FUTURE_TIMERS
 	 ,created_(boost::chrono::high_resolution_clock::now())
 #endif // FUTURE_TIMERS
