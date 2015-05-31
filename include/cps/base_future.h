@@ -24,6 +24,7 @@
 namespace cps {
 
 template<typename T> class leaf_future;
+class sequence_future;
 
 /**
  * Deferred result handling.
@@ -437,7 +438,7 @@ public:
 
 	static ptr complete_base_future() { auto f = create(); f->done(); return f; }
 
-	ptr then(seq ok) {
+	std::shared_ptr<sequence_future> then(seq ok, std::function<ptr(exception&)> err = nullptr) {
 		auto self = shared_from_this();
 		auto f = create();
 		on_done([self, ok, f]() {
@@ -493,15 +494,6 @@ public:
 		} 
 		if(is_failed()) code(*ex_);
 		return self;
-	}
-
-	ptr then(std::function<ptr()> ok, std::function<ptr(exception&)> fail) {
-		auto f = create();
-		if(ok != nullptr) {
-			then_.push_back(ok);
-		}
-		else_.push_back(fail);
-		return f;
 	}
 
 	bool is_pending() const { return state_ == state::pending; }
