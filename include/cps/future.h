@@ -322,7 +322,7 @@ virtual ~future() {
 					return v;
 				})->on_fail([f](exception &ex) {
 					f->fail(ex);
-				})->on_cancel([f](future::ptr) {
+				})->on_cancel([f]() {
 					f->fail("cancelled");
 				});
 			};
@@ -343,35 +343,35 @@ virtual ~future() {
 		*count = pending.size();
 		auto h = [f, count]() {
 #if FUTURE_TRACE
-			TRACE << "as " << f->describe_state() << " with count = " << *count << " on " << label_;
+			TRACE << "as " << f->describe_state() << " with count = " << *count << " on " << f->label_;
 #endif
 			if(0 == --*count && !f->is_ready()) f->done();
 #if FUTURE_TRACE
-			TRACE << "now " << f->describe_state() << " with count = " << *count << " on " << label_;
+			TRACE << "now " << f->describe_state() << " with count = " << *count << " on " << f->label_;
 #endif
 		};
 		auto ok = [f, h]() {
 			if(f->is_ready()) return;
 			h();
 		};
-		auto fail = [h, p, f](future::ptr in) {
+		auto fail_handler = [h, p, f](exception &ex) {
 			if(f->is_ready()) return;
 			for(auto &it : *p) {
 				if(!it->is_ready()) it->cancel();
 			}
-			in->propagate(f);
+			f->fail(ex);
 		};
-		auto can = [h, p, f](future::ptr in) {
+		auto can = [h, p, f]() {
 			if(f->is_ready()) return;
 
 			for(auto &it : *p) {
 				if(!it->is_ready()) it->cancel();
 			}
-			in->propagate(f);
+			f->cancel();
 		};
 		for(auto &it : *p) {
 			it->on_done(ok);
-			it->on_fail(fail);
+			it->on_fail(fail_handler);
 			it->on_cancel(can);
 		}
 		return f;
