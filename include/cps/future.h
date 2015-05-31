@@ -33,6 +33,18 @@
 namespace cps {
 
 /**
+ * \page futures
+ *
+ * A future represents the base implementation. It provides chaining and sequencing methods,
+ * and is able to retain state (pending, failed, cancelled, complete) but does not store
+ * values.
+ *
+ * A leaf_future is a template class which extends future to include the concept of a value.
+ *
+ * A sequence_future extends future to provide a container for zero or more futures.
+ */
+
+/**
  * Deferred result handling.
  * This class provides the base implementation for the "future" deferred-task concept.
  */
