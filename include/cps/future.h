@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef FUTURE_TIMERS
+#define FUTURE_TIMERS 1
+#endif // FUTURE_TIMERS
+
 #ifndef FUTURE_TRACE
 #define FUTURE_TRACE 0
 #endif // FUTURE_TRACE
@@ -103,7 +107,7 @@ virtual ~future() {
 #if FUTURE_TRACE
 		TRACE << " ->done() was " << describe_state();
 #endif
-		state_ = complete;
+		mark_ready(complete);
 		on_fail_.clear();
 		on_cancel_.clear();
 		while(!on_done_.empty()) {
@@ -270,8 +274,8 @@ virtual ~future() {
 private:
 
 	ptr fail() {
-		state_ = failed;
 		auto self = shared_from_this();
+		mark_ready(failed);
 		on_done_.clear();
 		on_cancel_.clear();
 		while(!on_fail_.empty()) {
@@ -293,8 +297,8 @@ private:
 
 public:
 	ptr cancel() {
-		state_ = cancelled;
 		auto self = shared_from_this();
+		mark_ready(cancelled);
 		on_done_.clear();
 		on_fail_.clear();
 		while(!on_cancel_.empty()) {
@@ -400,6 +404,10 @@ protected:
 	std::vector<evt> on_done_;
 	std::vector<evt> on_fail_;
 	std::vector<evt> on_cancel_;
+#if FUTURE_TIMERS
+	checkpoint created_;
+	checkpoint resolved_;
+#endif // FUTURE_TIMERS
 
 	std::string reason_;
 };
