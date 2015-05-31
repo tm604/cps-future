@@ -27,14 +27,14 @@ namespace cps {
  * Deferred result handling.
  * This class provides the base implementation for the "future" deferred-task concept.
  */
-class future : public std::enable_shared_from_this<future> {
+class base_future : public std::enable_shared_from_this<base_future> {
 #if FUTURE_TIMERS
 private:
 	typedef boost::chrono::high_resolution_clock::time_point checkpoint;
 #endif
 public:
-	/** A std::shared_ptr to a cps::future */
-	typedef std::shared_ptr<future> ptr;
+	/** A std::shared_ptr to a cps::base_future */
+	typedef std::shared_ptr<base_future> ptr;
 	typedef std::function<ptr()> seq;
 
 	/** Current state of this future */
@@ -94,7 +94,7 @@ public:
 	};
 
 	/** Instantiates a new future with the given label */
-	future(
+	base_future(
 		const std::string &label
 	):state_{pending},
 	  label_(label)
@@ -108,7 +108,7 @@ public:
 	}
 
 	/** Instantiates a future with no label */
-	future(
+	base_future(
 	):state_{pending},
 	  label_()
 #if FUTURE_TIMERS
@@ -116,18 +116,18 @@ public:
 #endif // FUTURE_TIMERS
 	{
 #if FUTURE_TRACE
-		TRACE << " future()";
+		TRACE << " base_future()";
 #endif
 	}
 
-virtual ~future() {
+virtual ~base_future() {
 #if FUTURE_TRACE
-		TRACE << "~future(" << label_ << ") " << describe_state();
+		TRACE << "~base_future(" << label_ << ") " << describe_state();
 #endif
 	}
 
 	/**
-	 * Reports the state of this future.
+	 * Reports the state of this base_future.
 	 * String returned will be one of:
 	 * <ul>
 	 * <li>pending
@@ -151,17 +151,17 @@ virtual ~future() {
 	}
 
 	/**
-	 * Creates a new shared_ptr<future>.
+	 * Creates a new shared_ptr<base_future>.
 	 */
 	static
 	ptr
 	create() {
-		struct accessor : public future { };
+		struct accessor : public base_future { };
 		return std::make_shared<accessor>();
 	}
 
 	/**
-	 * Marks this future as done.
+	 * Marks this base_future as done.
 	 * Subclasses should override this to accept a value.
 	 */
 	ptr done() {
@@ -196,7 +196,7 @@ virtual ~future() {
 	}
 
 	/**
-	 * Marks this future as failed.
+	 * Marks this base_future as failed.
 	 */
 	ptr fail(
 		exception &ex
@@ -206,7 +206,7 @@ virtual ~future() {
 	}
 
 	/**
-	 * Marks this future as failed.
+	 * Marks this base_future as failed.
 	 */
 	ptr fail(
 		std::shared_ptr<std::exception> ex,
@@ -222,7 +222,7 @@ virtual ~future() {
 	}
 
 	/**
-	 * Marks this future as failed.
+	 * Marks this base_future as failed.
 	 */
 	ptr fail(
 		const std::string &ex,
@@ -238,7 +238,7 @@ virtual ~future() {
 	}
 
 	/**
-	 * Adds code to the list of things that should be called when this future
+	 * Adds code to the list of things that should be called when this base_future
 	 * resolves, regardless of state.
 	 */
 	ptr on_ready(std::function<void(ptr)> code) {
@@ -252,8 +252,8 @@ virtual ~future() {
 	}
 
 	/**
-	 * Attaches this future to another future, so that we get resolved with
-	 * the same state as the other future.
+	 * Attaches this base_future to another base_future, so that we get resolved with
+	 * the same state as the other base_future.
 	 */
 	ptr propagate(ptr f) {
 #if FUTURE_TRACE
@@ -272,20 +272,20 @@ virtual ~future() {
 	}
 
 	static
-	future::ptr
-	repeat(std::function<bool(future::ptr)> check, std::function<future::ptr(future::ptr)> each) {
+	base_future::ptr
+	repeat(std::function<bool(base_future::ptr)> check, std::function<base_future::ptr(base_future::ptr)> each) {
 		auto f = create();
 		// Keep f around until it's finished
 		f->on_ready([f](ptr in) { });
 
 		auto next = create();
 		next->done();
-		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
+		std::shared_ptr<std::function<base_future::ptr(base_future::ptr)>> code = std::make_shared<std::function<base_future::ptr(base_future::ptr)>>([f, check, code, each] (base_future::ptr in) mutable -> base_future::ptr {
 #if FUTURE_TRACE
 			TRACE << "Entering code() with " << (void*)(&(*code));
 #endif
-			std::function<future::ptr(future::ptr)> recurse;
-			recurse = [&,f](future::ptr in) -> future::ptr {
+			std::function<base_future::ptr(base_future::ptr)> recurse;
+			recurse = [&,f](base_future::ptr in) -> base_future::ptr {
 #if FUTURE_TRACE
 				TRACE << "Entering recursion with " << f->describe_state() << " on " << f->label_;
 #endif
@@ -305,7 +305,7 @@ virtual ~future() {
 				}
 
 				in = each(in);
-				return in->then([f, in, &recurse]() -> future::ptr {
+				return in->then([f, in, &recurse]() -> base_future::ptr {
 #if FUTURE_TRACE
 					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << " on " << f->label_;
 #endif
@@ -326,7 +326,7 @@ virtual ~future() {
 		TRACE << "Calling next";
 #endif
 		next = (*code)(next);
-		f->on_ready([code](future::ptr) -> future::ptr { return create()->done(); });
+		f->on_ready([code](base_future::ptr) -> base_future::ptr { return create()->done(); });
 		return f;
 	}
 
@@ -417,7 +417,7 @@ public:
 		}
 	}
 
-	static ptr complete_future() { auto f = create(); f->done(); return f; }
+	static ptr complete_base_future() { auto f = create(); f->done(); return f; }
 
 	ptr then(seq ok) {
 		auto self = shared_from_this();
@@ -493,12 +493,12 @@ public:
 	bool is_cancelled() const { return state_ == state::cancelled; }
 	std::string failure() const {
 		if(!is_failed())
-			throw fail_exception(u8"this future is not failed");
+			throw fail_exception(u8"this base_future is not failed");
 		return ex_->reason();
 	}
 
 protected:
-	/** Used internally to mark this future as ready. Takes a single parameter
+	/** Used internally to mark this base_future as ready. Takes a single parameter
 	 * which indicates the state - failed, completed, cancelled */
 	void mark_ready(state s) {
 		state_ = s;

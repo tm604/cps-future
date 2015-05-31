@@ -5,10 +5,10 @@
 namespace cps {
 
 /**
- * A subclass of cps::future which can also store a value
+ * A subclass of cps::base_future which can also store a value
  */
 template<typename T>
-class leaf_future : public future {
+class leaf_future : public base_future {
 public:
 	static
 	std::shared_ptr<leaf_future<T>>
@@ -99,7 +99,7 @@ private:
 };
 
 template<typename T>
-class leaf_future<std::shared_ptr<T>> : public future {
+class leaf_future<std::shared_ptr<T>> : public base_future {
 public:
 	static
 	std::shared_ptr<leaf_future<std::shared_ptr<T>>>
