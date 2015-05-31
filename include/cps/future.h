@@ -210,11 +210,11 @@ virtual ~future() {
 	static
 	future::ptr
 	repeat(std::function<bool(future::ptr)> check, std::function<future::ptr(future::ptr)> each) {
-		auto f = future::create();
+		auto f = create();
 		// Keep f around until it's finished
 		f->on_ready([f](ptr in) { });
 
-		auto next = future::create();
+		auto next = create();
 		next->done();
 		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
 #if FUTURE_TRACE
@@ -262,12 +262,12 @@ virtual ~future() {
 		TRACE << "Calling next";
 #endif
 		next = (*code)(next);
-		f->on_ready([code](future::ptr) -> future::ptr { return future::create()->done(); });
+		f->on_ready([code](future::ptr) -> future::ptr { return create()->done(); });
 		return f;
 	}
 
 	static ptr needs_all(std::vector<ptr> pending) {
-		auto f = future::create();
+		auto f = create();
 		auto count = std::make_shared<std::atomic<int>>();
 		auto p = std::make_shared<std::vector<ptr>>(std::move(pending));
 		*count = pending.size();
@@ -353,7 +353,7 @@ public:
 		}
 	}
 
-	static ptr complete_future() { auto f = future::create(); f->done(); return f; }
+	static ptr complete_future() { auto f = create(); f->done(); return f; }
 
 	ptr then(seq ok) {
 		auto self = shared_from_this();
