@@ -24,6 +24,10 @@
 #define TRACE BOOST_LOG_TRIVIAL(trace)
 #endif
 
+#if FUTURE_TIMERS
+#include <boost/chrono/chrono_io.hpp>
+#endif // FUTURE_TIMERS
+
 #include <vector>
 
 namespace cps {
