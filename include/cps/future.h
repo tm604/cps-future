@@ -80,10 +80,20 @@ public:
 
 	future(
 	):state_{pending}
+#if FUTURE_TIMERS
+	 ,created_(boost::chrono::high_resolution_clock::now())
+#endif // FUTURE_TIMERS
 	{
 #if FUTURE_TRACE
 		TRACE << " future()";
 #endif
+	}
+
+	void mark_ready(state s) {
+		state_ = s;
+#if FUTURE_TIMERS
+		resolved_ = boost::chrono::high_resolution_clock::now();
+#endif // FUTURE_TIMERS
 	}
 
 virtual ~future() {
@@ -92,6 +102,18 @@ virtual ~future() {
 #endif
 	}
 
+	/**
+	 * Reports the state of this future.
+	 * String returned will be one of:
+	 * <ul>
+	 * <li>pending
+	 * <li>cancelled
+	 * <li>failed
+	 * <li>complete
+	 * </ul>
+	 * If something has gone badly wrong, this will report unknown with the actual numerical
+	 * state in (). This usually indicates memory corruption or a deleted object.
+	 */
 	std::string
 	describe_state() const
 	{
