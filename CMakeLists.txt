@@ -15,7 +15,7 @@ include_directories(include/)
 
 add_executable(
 	future_tests
-	src/future_tests.cpp
+	tests/future.cpp
 	include/cps/future.h
 )
 
@@ -29,7 +29,7 @@ target_link_libraries(future_tests ${Boost_LIBRARIES})
 
 add_executable(
 	leaf_future_tests
-	src/leaf_future_tests.cpp
+	tests/leaf_future.cpp
 	include/cps/future.h
 )
 
