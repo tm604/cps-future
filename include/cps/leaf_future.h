@@ -82,7 +82,7 @@ virtual ~leaf_future() {
 	}
 
 public:
-	base_future::ptr
+	std::shared_ptr<sequence_future>
 	then(
 		/** Chained handler for dealing with success */
 		std::function<base_future::ptr(const T &)> ok,
@@ -91,7 +91,7 @@ public:
 	) {
 		// std::shared_ptr<leaf_future<T>> self = shared_from_this();
 		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
-		auto f = base_future::create();
+		auto f = sequence_future::create();
 		on_done([self, ok, f]() {
 #if FUTURE_TRACE
 			TRACE << "Marking me as done" << " on " << self->label_;
