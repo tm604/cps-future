@@ -435,15 +435,16 @@ public:
 protected:
 	state state_;
 
-	std::vector<seq> then_;
-	std::vector<seq> else_;
-	std::vector<evt> on_done_;
-	std::vector<evt> on_fail_;
-	std::vector<evt> on_cancel_;
 #if FUTURE_TIMERS
 	checkpoint created_;
 	checkpoint resolved_;
 #endif // FUTURE_TIMERS
+
+	std::vector<std::function<ptr()>> then_;
+	std::vector<std::function<ptr(exception &)>> else_;
+	std::vector<std::function<void()>> on_done_;
+	std::vector<std::function<void(exception &)>> on_fail_;
+	std::vector<std::function<void()>> on_cancel_;
 
 	std::string reason_;
 };
