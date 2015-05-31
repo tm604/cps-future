@@ -42,8 +42,8 @@ endif()
 target_link_libraries(leaf_future_tests ${Boost_LIBRARIES})
 
 install(
-	FILES include/cps/future.h
-	DESTINATION "include/cps"
+	DIRECTORY include/
+	DESTINATION include
 )
 
 include (CTest)
