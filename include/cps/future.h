@@ -512,7 +512,7 @@ public:
 	bool is_failed() const { return state_ == state::failed; }
 	bool is_done() const { return state_ == state::complete; }
 	bool is_cancelled() const { return state_ == state::cancelled; }
-	std::string failure() const { return reason_; }
+	std::string failure() const { if(!is_failed()) throw failure_exception(u8"this future is not failed"); return ex_->reason_; }
 
 protected:
 	/** Used internally to mark this future as ready. Takes a single parameter
