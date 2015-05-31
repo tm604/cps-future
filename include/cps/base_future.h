@@ -95,7 +95,7 @@ public:
 
 	/** Instantiates a new future with the given label */
 	base_future(
-		const std::string &label
+		const std::string &label = u8"unlabelled future"
 	):state_{pending},
 	  label_(label)
 #if FUTURE_TIMERS
@@ -104,19 +104,6 @@ public:
 	{
 #if FUTURE_TRACE
 		TRACE << " future(" << label_ << ")";
-#endif
-	}
-
-	/** Instantiates a future with no label */
-	base_future(
-	):state_{pending},
-	  label_()
-#if FUTURE_TIMERS
-	 ,created_(boost::chrono::high_resolution_clock::now())
-#endif // FUTURE_TIMERS
-	{
-#if FUTURE_TRACE
-		TRACE << " base_future()";
 #endif
 	}
 
