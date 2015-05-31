@@ -158,13 +158,13 @@ private:
 #endif
 	{
 #if FUTURE_TRACE
-		TRACE << " leaf_future<" << item_type_ << ">()" << " on " << label_;
+		TRACE << " leaf_future<" << item_type_ << ">(" << label_ << ")";
 #endif
 	}
 
 virtual ~leaf_future() {
 #if FUTURE_TRACE
-		TRACE << "~leaf_future<" << item_type_ << ">() " << describe_state() << " on " << label_;
+		TRACE << "~leaf_future<" << item_type_ << ">(" << label_ << ") " << describe_state();
 #endif
 	}
 
