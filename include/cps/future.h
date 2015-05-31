@@ -116,13 +116,6 @@ public:
 #endif
 	}
 
-	void mark_ready(state s) {
-		state_ = s;
-#if FUTURE_TIMERS
-		resolved_ = boost::chrono::high_resolution_clock::now();
-#endif // FUTURE_TIMERS
-	}
-
 virtual ~future() {
 #if FUTURE_TRACE
 		TRACE << "~future(" << label_ << ") " << describe_state();
@@ -454,6 +447,16 @@ public:
 	bool is_done() const { return state_ == state::complete; }
 	bool is_cancelled() const { return state_ == state::cancelled; }
 	std::string failure() const { return reason_; }
+
+protected:
+	/** Used internally to mark this future as ready. Takes a single parameter
+	 * which indicates the state - failed, completed, cancelled */
+	void mark_ready(state s) {
+		state_ = s;
+#if FUTURE_TIMERS
+		resolved_ = boost::chrono::high_resolution_clock::now();
+#endif // FUTURE_TIMERS
+	}
 
 protected:
 	std::atomic<state> state_;
