@@ -28,18 +28,18 @@ endif()
 target_link_libraries(future_tests ${Boost_LIBRARIES})
 
 add_executable(
-	typed_future_tests
-	src/typed_future_tests.cpp
+	leaf_future_tests
+	src/leaf_future_tests.cpp
 	include/cps/future.h
 )
 
 if(THREADS_HAVE_PTHREAD_ARG)
-	target_compile_options(PUBLIC typed_future_tests "-pthread")
+	target_compile_options(PUBLIC leaf_future_tests "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-	target_link_libraries(typed_future_tests "${CMAKE_THREAD_LIBS_INIT}")
+	target_link_libraries(leaf_future_tests "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(typed_future_tests ${Boost_LIBRARIES})
+target_link_libraries(leaf_future_tests ${Boost_LIBRARIES})
 
 add_executable(
 	neo
@@ -63,6 +63,6 @@ install(
 include (CTest)
 
 add_test (boost future_tests --log_level=all --log_format=XML --log_sink=future_tests.xml)
-add_test (boost typed_future_tests --log_level=all --log_format=XML --log_sink=typed_future_tests.xml)
+add_test (boost leaf_future_tests --log_level=all --log_format=XML --log_sink=leaf_future_tests.xml)
 add_test (boost neo --log_level=all --log_format=XML --log_sink=neo.xml)
 

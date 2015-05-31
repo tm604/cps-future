@@ -2,18 +2,18 @@
 #if !defined( WIN32 )
     #define BOOST_TEST_DYN_LINK
 #endif
-#define BOOST_TEST_MODULE TypedFutureTests
+#define BOOST_TEST_MODULE LeafFutureTests
 
 #include <boost/test/unit_test.hpp>
 
 #define FUTURE_TRACE 1
 
-#include "cps/future.h"
+#include <cps/future.h>
 #include "Log.h"
 
-BOOST_AUTO_TEST_CASE(typed_future_int)
+BOOST_AUTO_TEST_CASE(leaf_future_int)
 {
-	auto f = cps::typed_future<int>::create();
+	auto f = cps::leaf_future<int>::create();
     BOOST_CHECK(f);
     BOOST_CHECK(!f->is_ready());
     BOOST_CHECK(!f->is_done());
@@ -27,9 +27,9 @@ BOOST_AUTO_TEST_CASE(typed_future_int)
     BOOST_CHECK(f->get() == 123);
 }
 
-BOOST_AUTO_TEST_CASE(typed_future_string)
+BOOST_AUTO_TEST_CASE(leaf_future_string)
 {
-	auto f = cps::typed_future<std::string>::create();
+	auto f = cps::leaf_future<std::string>::create();
     BOOST_CHECK(f);
     BOOST_CHECK(!f->is_ready());
     BOOST_CHECK(!f->is_done());
