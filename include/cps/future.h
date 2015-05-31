@@ -29,6 +29,10 @@
 namespace cps {
 
 class future : public std::enable_shared_from_this<future> {
+#if FUTURE_TIMERS
+private:
+	typedef boost::chrono::high_resolution_clock::time_point checkpoint;
+#endif
 public:
 	/** A std::shared_ptr to a cps::future */
 	typedef std::shared_ptr<future>  ptr;
