@@ -43,12 +43,10 @@ private:
 #endif
 public:
 	/** A std::shared_ptr to a cps::future */
-	typedef std::shared_ptr<future>  ptr;
-	/** A sequence callback (then, else, etc.) */
-	typedef std::function<ptr(ptr)>  seq;
-	/** A one-shot callback (on_done, on_fail etc.) */
-	typedef std::function<void(ptr)> evt;
+	typedef std::shared_ptr<future> ptr;
+	typedef std::function<ptr()> seq;
 
+	/** Current state of this future */
 	enum state {
 		pending,
 		cancelled,
