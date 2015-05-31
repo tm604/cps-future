@@ -21,10 +21,12 @@ public:
 
 	static
 	std::shared_ptr<sequence_future>
-	create() {
+	create(
+		const std::string &label = u8"unlabelled future"
+	) {
 		// Defeat private constructor if necessary
-		struct accessor : public sequence_future { };
-		return std::make_shared<accessor>();
+		// struct accessor : public sequence_future { };
+		return std::make_shared<sequence_future>(label);
 	}
 
 	template<typename U>
