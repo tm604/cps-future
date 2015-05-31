@@ -20,6 +20,10 @@
  *
  * A sequence_future is what you get back from ->then or ->else. It retains the inner future.
  * The actual type of the inner future isn't known until the callback runs.
+ *
+ * If you want values from a sequence_future, you'll need to call ->as<typename>() on it.
+ * This will throw an exception if the underlying future was a base_future rather than a
+ * leaf_future.
  */
 
 #include <cps/base_future.h>
