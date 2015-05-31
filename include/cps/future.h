@@ -24,6 +24,7 @@
 
 #include <cps/base_future.h>
 #include <cps/leaf_future.h>
+#include <cps/sequence_future.h>
 
 namespace cps {
 	typedef base_future future;
