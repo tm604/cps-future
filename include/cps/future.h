@@ -44,6 +44,15 @@ public:
 		complete
 	};
 
+	class exception {
+	public:
+		exception(
+			std::exception &e,
+			std::string component
+		):ex_(e),component_(component) { }
+		virtual ~exception() { }
+	};
+
 	class ready_exception : public std::runtime_error {
 	public:
 		ready_exception(
