@@ -295,6 +295,9 @@ virtual ~base_future() {
 
 		auto next = create();
 		next->done();
+#if FUTURE_TRACE
+		TRACE << "->repeat...";
+#endif
 		std::shared_ptr<std::function<base_future::ptr(base_future::ptr)>> code = std::make_shared<std::function<base_future::ptr(base_future::ptr)>>([f, check, code, each] (base_future::ptr in) mutable -> base_future::ptr {
 #if FUTURE_TRACE
 			TRACE << "Entering code() with " << (void*)(&(*code));
