@@ -32,6 +32,10 @@
 
 namespace cps {
 
+/**
+ * Deferred result handling.
+ * This class provides the base implementation for the "future" deferred-task concept.
+ */
 class future : public std::enable_shared_from_this<future> {
 #if FUTURE_TIMERS
 private:
@@ -52,6 +56,7 @@ public:
 		complete
 	};
 
+	/** Holds information about a failure */
 	class exception {
 	public:
 		exception(
@@ -86,6 +91,7 @@ public:
 		}
 	};
 
+	/** Instantiates a new future with the given label */
 	future(
 		const std::string &label
 	):state_{pending},
@@ -99,6 +105,7 @@ public:
 #endif
 	}
 
+	/** Instantiates a future with no label */
 	future(
 	):state_{pending},
 	  label_(),
