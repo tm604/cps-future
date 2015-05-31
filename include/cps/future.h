@@ -14,6 +14,10 @@
 #include <iomanip>
 #include <typeinfo>
 #include <cxxabi.h>
+
+#include <boost/log/trivial.hpp>
+
+#define TRACE BOOST_LOG_TRIVIAL(trace)
 #endif
 
 #include <vector>
@@ -65,13 +69,13 @@ public:
 	):state_{pending}
 	{
 #if FUTURE_TRACE
-		std::cout << " future()" << std::endl;
+		TRACE << " future()";
 #endif
 	}
 
 virtual ~future() {
 #if FUTURE_TRACE
-		std::cout << "~future() " << describe_state() << std::endl;
+		TRACE << "~future() " << describe_state();
 #endif
 	}
 
@@ -97,7 +101,7 @@ virtual ~future() {
 	ptr done() {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		std::cout << " ->done() was " << describe_state() << std::endl;
+		TRACE << " ->done() was " << describe_state();
 #endif
 		state_ = complete;
 		on_fail_.clear();
@@ -107,19 +111,19 @@ virtual ~future() {
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				std::cout << "trying handler " << (void*)(&it) << std::endl;
+				TRACE << "trying handler " << (void*)(&it);
 #endif
 				try {
-					(it)(self);
+					(it)();
 				} catch(std::string ex) {
-					std::cerr << "Exception in callback - " << ex << std::endl;
+					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
-					std::cerr << "Unknown exception in callback" << std::endl;
+					std::cerr << "Unknown exception in callback";
 					throw;
 				}
 			}
 #if FUTURE_TRACE
-			std::cout << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << std::endl;
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
 #endif
 		}
 		return self;
@@ -145,7 +149,7 @@ virtual ~future() {
 
 	ptr propagate(ptr f) {
 #if FUTURE_TRACE
-		std::cout << "propagating " << f->describe_state() << " from " << describe_state() << std::endl;
+		TRACE << "propagating " << f->describe_state() << " from " << describe_state();
 #endif
 		on_done([f](ptr) {
 			f->done();
@@ -174,23 +178,23 @@ virtual ~future() {
 		next->done();
 		std::shared_ptr<std::function<future::ptr(future::ptr)>> code = std::make_shared<std::function<future::ptr(future::ptr)>>([f, check, code, each] (future::ptr in) mutable -> future::ptr {
 #if FUTURE_TRACE
-			std::cout << "Entering code() with " << (void*)(&(*code)) << std::endl;
+			TRACE << "Entering code() with " << (void*)(&(*code));
 #endif
 			std::function<future::ptr(future::ptr)> recurse;
 			recurse = [&,f](future::ptr in) -> future::ptr {
 #if FUTURE_TRACE
-				std::cout << "Entering recursion with " << f->describe_state() << std::endl;
+				TRACE << "Entering recursion with " << f->describe_state();
 #endif
 				if(f->is_ready()) return f;
 
 				{
 					bool status = check(in);
 #if FUTURE_TRACE
-					std::cout << "Check returns " << status << std::endl;
+					TRACE << "Check returns " << status;
 #endif
 					if(status) {
 #if FUTURE_TRACE
-						std::cout << "And we are done" << std::endl;
+						TRACE << "And we are done";
 #endif
 						return f->done();
 					}
@@ -199,11 +203,11 @@ virtual ~future() {
 				auto e = each(in);
 				return e->then([f, &recurse](future::ptr in) -> future::ptr {
 #if FUTURE_TRACE
-					std::cout << "each then with f = " << f->describe_state() << " and in = " << in->describe_state() << std::endl;
+					TRACE << "each then with f = " << f->describe_state() << " and in = " << in->describe_state();
 #endif
 					auto v = recurse(in);
 #if FUTURE_TRACE
-					std::cout << "v was " << v << std::endl;
+					TRACE << "v was " << v;
 #endif
 					return v;
 				})->on_fail([f](future::ptr in) {
@@ -215,7 +219,7 @@ virtual ~future() {
 			return recurse(in);
 		});
 #if FUTURE_TRACE
-		std::cout << "Calling next" << std::endl;
+		TRACE << "Calling next";
 #endif
 		next = (*code)(next);
 		f->on_ready([code](future::ptr) -> future::ptr { return future::create()->done(); });
@@ -229,11 +233,11 @@ virtual ~future() {
 		*count = pending.size();
 		auto h = [f, count]() {
 #if FUTURE_TRACE
-			std::cout << "as " << f->describe_state() << " with count = " << *count << std::endl;
+			TRACE << "as " << f->describe_state() << " with count = " << *count;
 #endif
 			if(0 == --*count && !f->is_ready()) f->done();
 #if FUTURE_TRACE
-			std::cout << "now " << f->describe_state() << " with count = " << *count << std::endl;
+			TRACE << "now " << f->describe_state() << " with count = " << *count;
 #endif
 		};
 		auto ok = [f, h]() {
@@ -277,9 +281,9 @@ private:
 				try {
 					(it)(self);
 				} catch(std::string ex) {
-					std::cerr << "Exception in callback - " << ex << std::endl;
+					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
-					std::cerr << "Unknown exception in callback" << std::endl;
+					std::cerr << "Unknown exception in callback";
 					throw;
 				}
 			}
@@ -300,9 +304,9 @@ public:
 				try {
 					(it)(self);
 				} catch(std::string ex) {
-					std::cerr << "Exception in callback - " << ex << std::endl;
+					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
-					std::cerr << "Unknown exception in callback" << std::endl;
+					std::cerr << "Unknown exception in callback";
 					throw;
 				}
 			}
@@ -316,7 +320,7 @@ public:
 		auto f = create();
 		on_done([self, ok, f](ptr in) -> void {
 #if FUTURE_TRACE
-			std::cout << "Marking me as done" << std::endl;
+			TRACE << "Marking me as done";
 #endif
 			if(f->is_ready()) return;
 			auto s = ok(self);
@@ -324,14 +328,14 @@ public:
 		});
 		on_fail([self, f](ptr in) -> void {
 #if FUTURE_TRACE
-			std::cout << "Marking me as failed" << std::endl;
+			TRACE << "Marking me as failed";
 #endif
 			if(f->is_ready()) return;
 			f->fail(self);
 		});
 		on_cancel([f](ptr in) -> void {
 #if FUTURE_TRACE
-			std::cout << "Marking me as cancelled" << std::endl;
+			TRACE << "Marking me as cancelled";
 #endif
 			if(f->is_ready()) return;
 			f->cancel();
@@ -426,7 +430,7 @@ public:
 	ptr done(const T &v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		std::cout << " ->done() was " << describe_state() << std::endl;
+		TRACE << " ->done() was " << describe_state();
 #endif
 		value_ = v;
 		state_ = complete;
@@ -437,19 +441,19 @@ public:
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				std::cout << "trying handler " << (void*)(&it) << std::endl;
+				TRACE << "trying handler " << (void*)(&it);
 #endif
 				try {
 					(it)(self);
 				} catch(std::string ex) {
-					std::cerr << "Exception in callback - " << ex << std::endl;
+					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
-					std::cerr << "Unknown exception in callback" << std::endl;
+					std::cerr << "Unknown exception in callback";
 					throw;
 				}
 			}
 #if FUTURE_TRACE
-			std::cout << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << std::endl;
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
 #endif
 		}
 		return self;
@@ -463,13 +467,13 @@ private:
 #endif
 	{
 #if FUTURE_TRACE
-		std::cout << " typed_future<" << item_type_ << ">()" << std::endl;
+		TRACE << " typed_future<" << item_type_ << ">()";
 #endif
 	}
 
 virtual ~typed_future() {
 #if FUTURE_TRACE
-		std::cout << "~typed_future<" << item_type_ << ">() " << describe_state() << std::endl;
+		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state();
 #endif
 	}
 
@@ -517,7 +521,7 @@ public:
 	ptr done(const T v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
-		std::cout << " ->done() was " << describe_state() << std::endl;
+		TRACE << " ->done() was " << describe_state();
 #endif
 		value_ = v;
 		state_ = complete;
@@ -528,19 +532,19 @@ public:
 			on_done_.clear();
 			for(auto &it : copy) {
 #if FUTURE_TRACE
-				std::cout << "trying handler " << (void*)(&it) << std::endl;
+				TRACE << "trying handler " << (void*)(&it);
 #endif
 				try {
 					(it)(self);
 				} catch(std::string ex) {
-					std::cerr << "Exception in callback - " << ex << std::endl;
+					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
-					std::cerr << "Unknown exception in callback" << std::endl;
+					std::cerr << "Unknown exception in callback";
 					throw;
 				}
 			}
 #if FUTURE_TRACE
-			std::cout << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining" << std::endl;
+			TRACE << "finished handler as " << describe_state() << " with " << on_done_.size() << " remaining";
 #endif
 		}
 		return self;
@@ -554,13 +558,13 @@ private:
 #endif
 	{
 #if FUTURE_TRACE
-		std::cout << " typed_future<" << item_type_ << ">()" << std::endl;
+		TRACE << " typed_future<" << item_type_ << ">()";
 #endif
 	}
 
 virtual ~typed_future() {
 #if FUTURE_TRACE
-		std::cout << "~typed_future<" << item_type_ << ">() " << describe_state() << std::endl;
+		TRACE << "~typed_future<" << item_type_ << ">() " << describe_state();
 #endif
 	}
 
