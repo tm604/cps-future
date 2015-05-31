@@ -41,6 +41,20 @@ if(CMAKE_THREAD_LIBS_INIT)
 endif()
 target_link_libraries(typed_future_tests ${Boost_LIBRARIES})
 
+add_executable(
+	neo
+	src/neo.cpp
+	include/cps/future.h
+)
+
+if(THREADS_HAVE_PTHREAD_ARG)
+	target_compile_options(PUBLIC neo "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+	target_link_libraries(neo "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+target_link_libraries(neo ${Boost_LIBRARIES})
+
 install(
 	FILES include/cps/future.h
 	DESTINATION "include/cps"
@@ -50,4 +64,5 @@ include (CTest)
 
 add_test (boost future_tests --log_level=all --log_format=XML --log_sink=future_tests.xml)
 add_test (boost typed_future_tests --log_level=all --log_format=XML --log_sink=typed_future_tests.xml)
+add_test (boost neo --log_level=all --log_format=XML --log_sink=neo.xml)
 
