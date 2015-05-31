@@ -484,6 +484,16 @@ public:
 		return ex_->reason();
 	}
 
+	/** Returns the label for this future */
+	const std::string &label() const { return label_; }
+
+	/**
+	 * Reports number of nanoseconds that have elapsed so far
+	 */
+	boost::chrono::nanoseconds elapsed() const {
+		return (is_ready() ? resolved_ : boost::chrono::high_resolution_clock::now()) - created_;
+	}
+
 protected:
 	/** Used internally to mark this base_future as ready. Takes a single parameter
 	 * which indicates the state - failed, completed, cancelled */
