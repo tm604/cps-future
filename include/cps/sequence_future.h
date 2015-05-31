@@ -17,6 +17,14 @@ public:
 
 	virtual ~sequence_future() { }
 
+	static
+	std::shared_ptr<sequence_future>
+	create() {
+		// Defeat private constructor if necessary
+		struct accessor : public sequence_future { };
+		return std::make_shared<accessor>();
+	}
+
 	template<typename U>
 	std::shared_ptr<leaf_future<U>>
 	as()
