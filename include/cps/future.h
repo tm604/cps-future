@@ -94,11 +94,6 @@ virtual ~future() {
 		return std::make_shared<accessor>();
 	}
 
-	ptr done(ptr f) {
-		auto self = shared_from_this();
-		return done();
-	}
-
 	ptr done() {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
