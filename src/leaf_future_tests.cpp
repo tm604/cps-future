@@ -6,6 +6,11 @@
 
 #include <boost/test/unit_test.hpp>
 
+/* For symbol_thingey */
+#define BOOST_CHRONO_VERSION 2
+#include <boost/chrono/chrono.hpp>
+#include <boost/chrono/chrono_io.hpp>
+
 #define FUTURE_TRACE 1
 
 #include <cps/future.h>
@@ -38,6 +43,7 @@ BOOST_AUTO_TEST_CASE(leaf_future_int)
 	{
 		auto f = cps::leaf_future<int>::create();
 		f->fail("something");
+		DEBUG << "Elapsed: " << boost::chrono::symbol_format << f->elapsed();
 		BOOST_CHECK( f->is_ready());
 		BOOST_CHECK(!f->is_done());
 		BOOST_CHECK( f->is_failed());
