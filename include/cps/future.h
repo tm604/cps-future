@@ -206,10 +206,12 @@ virtual ~future() {
 
 	ptr on_ready(std::function<void(ptr)> code) {
 		auto self = shared_from_this();
-		auto handler = [self]() { code(self); };
+		auto handler = [self, code]() { code(self); };
 		on_done(handler);
 		on_cancel(handler);
-		on_fail(handler);
+		auto fail_handler = [self, code](exception &) { code(self); };
+		auto handler = [self, code]() { code(self); };
+		on_fail(fail_handler);
 		return self;
 	}
 
