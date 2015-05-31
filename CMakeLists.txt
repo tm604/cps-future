@@ -9,7 +9,7 @@ set (VERSION_MINOR 0)
 add_definitions(-std=c++11)
 
 add_definitions(-DBOOST_LOG_DYN_LINK)
-find_package(Boost COMPONENTS system log unit_test_framework REQUIRED)
+find_package(Boost COMPONENTS system thread log unit_test_framework REQUIRED)
 
 include_directories(include/)
 
