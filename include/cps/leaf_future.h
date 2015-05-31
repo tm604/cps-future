@@ -97,8 +97,13 @@ public:
 			TRACE << "Marking me as done" << " on " << self->label_;
 #endif
 			if(f->is_ready()) return;
-			auto s = ok(self->get());
-			s->propagate(f);
+			if(ok) {
+				auto inner = ok(self->get());
+				f->inner(inner);
+			} else {
+				// FIXME no
+				f->done();
+			}
 		});
 		on_fail([self, err, f](exception &ex) {
 #if FUTURE_TRACE

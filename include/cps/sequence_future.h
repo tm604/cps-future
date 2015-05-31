@@ -17,6 +17,8 @@ public:
 
 	virtual ~sequence_future() { }
 
+	virtual const base_future::future_type type() const { return base_future::sequence; }
+
 	static
 	std::shared_ptr<sequence_future>
 	create() {
@@ -36,6 +38,15 @@ public:
 			throw type_exception();
 
 		return std::dynamic_pointer_cast<leaf_future<U>>(inner_);
+	}
+
+	std::shared_ptr<sequence_future>
+	inner(std::shared_ptr<base_future> f)
+	{
+		auto self = std::dynamic_pointer_cast<sequence_future>(shared_from_this());
+		inner_ = f;
+		f->propagate(self);
+		return self;
 	}
 
 private:
