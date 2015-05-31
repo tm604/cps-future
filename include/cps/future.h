@@ -218,14 +218,14 @@ virtual ~future() {
 #if FUTURE_TRACE
 		TRACE << "propagating " << f->describe_state() << " from " << describe_state() << " on " << label_;
 #endif
-		on_done([f](ptr) {
+		on_done([f]() {
 			f->done();
 		});
-		on_cancel([f](ptr) {
+		on_cancel([f]() {
 			f->cancel();
 		});
-		on_fail([f](ptr src) {
-			f->fail(src->failure());
+		on_fail([f](exception &e) {
+			f->fail(e);
 		});
 		return f;
 	}
