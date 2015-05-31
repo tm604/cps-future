@@ -399,7 +399,7 @@ public:
 		return f;
 	}
 
-	ptr on_done(evt code) {
+	ptr on_done(std::function<void()> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_done_.push_back(code);
@@ -408,11 +408,8 @@ public:
 		if(is_done()) code(self);
 		return self;
 	}
-	ptr on_done(std::function<void(void)> code) {
-		return on_done([code](ptr f) -> void { code(); });
-	}
 
-	ptr on_cancel(evt code) {
+	ptr on_cancel(std::function<void()> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_cancel_.push_back(code);
@@ -422,7 +419,7 @@ public:
 		return self;
 	}
 
-	ptr on_fail(evt code) {
+	ptr on_fail(std::function<void(exception&)> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_fail_.push_back(code);
@@ -432,8 +429,8 @@ public:
 		return self;
 	}
 
-	ptr then(seq ok, seq fail) {
-		auto f = future::create();
+	ptr then(std::function<ptr()> ok, std::function<ptr(exception&)> fail) {
+		auto f = create();
 		if(ok != nullptr) {
 			then_.push_back(ok);
 		}
