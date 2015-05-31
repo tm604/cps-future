@@ -13,18 +13,36 @@
 
 BOOST_AUTO_TEST_CASE(leaf_future_int)
 {
-	auto f = cps::leaf_future<int>::create();
-    BOOST_CHECK(f);
-    BOOST_CHECK(!f->is_ready());
-    BOOST_CHECK(!f->is_done());
-    BOOST_CHECK(!f->is_failed());
-    BOOST_CHECK(!f->is_cancelled());
-	f->done(123);
-    BOOST_CHECK( f->is_ready());
-    BOOST_CHECK( f->is_done());
-    BOOST_CHECK(!f->is_failed());
-    BOOST_CHECK(!f->is_cancelled());
-    BOOST_CHECK(f->get() == 123);
+	{
+		auto f = cps::leaf_future<int>::create();
+		BOOST_CHECK(f);
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		f->done(123);
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		BOOST_CHECK(f->get() == 123);
+	}
+	{
+		auto f = cps::leaf_future<int>::create();
+		f->cancel();
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK( f->is_cancelled());
+	}
+	{
+		auto f = cps::leaf_future<int>::create();
+		f->fail("something");
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK( f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+	}
 }
 
 BOOST_AUTO_TEST_CASE(leaf_future_string)
