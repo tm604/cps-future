@@ -433,7 +433,7 @@ public:
 	std::string failure() const { return reason_; }
 
 protected:
-	state state_;
+	std::atomic<state> state_;
 
 #if FUTURE_TIMERS
 	checkpoint created_;
