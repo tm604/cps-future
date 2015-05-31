@@ -59,7 +59,7 @@ public:
 	public:
 		exception(
 			std::shared_ptr<std::exception> e,
-			std::string component
+			const std::string &component
 		):ex_(),
 		  component_(component)
 		{
