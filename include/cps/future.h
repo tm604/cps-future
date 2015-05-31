@@ -401,7 +401,7 @@ private:
 			on_fail_.clear();
 			for(auto &it : copy) {
 				try {
-					(it)(self);
+					(it)(*ex_);
 				} catch(std::string ex) {
 					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
@@ -424,7 +424,7 @@ public:
 			on_cancel_.clear();
 			for(auto &it : copy) {
 				try {
-					(it)(self);
+					(it)();
 				} catch(std::string ex) {
 					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
