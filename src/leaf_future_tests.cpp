@@ -45,9 +45,11 @@ BOOST_AUTO_TEST_CASE(leaf_future_sequencing)
 		BOOST_CHECK(v == expected);
 		return leaf_future<std::string>::create()->done("very happy");
 	});
+	BOOST_CHECK(seq->type() == base_future::sequence);
+
 	f->done(expected);
 	BOOST_CHECK(seq->is_done());
-	// BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
+	BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
 }
 
 /* int is special-cased to avoid references */
