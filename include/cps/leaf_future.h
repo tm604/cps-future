@@ -44,7 +44,7 @@ public:
 				TRACE << "trying handler " << (void*)(&it) << " on " << label_;
 #endif
 				try {
-					(it)(self);
+					(it)();
 				} catch(std::string ex) {
 					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
