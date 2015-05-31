@@ -440,24 +440,24 @@ public:
 	ptr then(seq ok) {
 		auto self = shared_from_this();
 		auto f = create();
-		on_done([self, ok, f](ptr in) -> void {
+		on_done([self, ok, f]() {
 #if FUTURE_TRACE
-			TRACE << "Marking me as done" << " on " << label_;
+			TRACE << "Marking me as done" << " on " << self->label_;
 #endif
 			if(f->is_ready()) return;
-			auto s = ok(self);
+			auto s = ok();
 			s->propagate(f);
 		});
 		on_fail([self, f](ptr in) -> void {
 #if FUTURE_TRACE
-			TRACE << "Marking me as failed" << " on " << label_;
+			TRACE << "Marking me as failed" << " on " << self->label_;
 #endif
 			if(f->is_ready()) return;
 			f->fail(self);
 		});
 		on_cancel([f](ptr in) -> void {
 #if FUTURE_TRACE
-			TRACE << "Marking me as cancelled" << " on " << label_;
+			TRACE << "Marking me as cancelled" << " on " << self->label_;
 #endif
 			if(f->is_ready()) return;
 			f->cancel();
