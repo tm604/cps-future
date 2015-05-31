@@ -210,7 +210,6 @@ virtual ~future() {
 		on_done(handler);
 		on_cancel(handler);
 		auto fail_handler = [self, code](exception &) { code(self); };
-		auto handler = [self, code]() { code(self); };
 		on_fail(fail_handler);
 		return self;
 	}
