@@ -42,6 +42,35 @@ BOOST_AUTO_TEST_CASE(leaf_future_string)
 		});
 		f->done("test");
 	}
+	{
+		auto f = leaf_future<std::shared_ptr<std::string>>::create();
+		auto expected = std::make_shared<std::string>("some test string");
+		f->on_done([f](std::shared_ptr<std::string> str) {
+			BOOST_CHECK(str == f->get());
+			BOOST_CHECK(*str == "some test string");
+		});
+		f->done(expected);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(leaf_future_bool)
+{
+	{
+		auto f = leaf_future<bool>::create();
+		f->on_done([f](bool v) {
+			BOOST_CHECK(v);
+		});
+		f->done(true);
+		BOOST_CHECK(f->get());
+	}
+	{
+		auto f = leaf_future<bool>::create();
+		f->on_done([f](bool v) {
+			BOOST_CHECK(!v);
+		});
+		f->done(false);
+		BOOST_CHECK(!f->get());
+	}
 }
 
 BOOST_AUTO_TEST_CASE(leaf_future_sequencing)
@@ -110,7 +139,8 @@ BOOST_AUTO_TEST_CASE(leaf_future_sequencing)
 			);
 		})->get();
 		BOOST_CHECK(concat.first == "we had 46 things");
-		BOOST_CHECK(concat.second == 17);
+		DEBUG << "Actual value: " << concat.second;
+		BOOST_CHECK(concat.second == 16);
 	}
 }
 
