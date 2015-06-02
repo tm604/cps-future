@@ -126,6 +126,63 @@ virtual ~leaf_future() {
 		return f;
 	}
 
+	template<typename U>
+	std::shared_ptr<leaf_future<U>>
+	leaf_then(
+		/** Chained handler for dealing with success */
+		std::function<std::shared_ptr<leaf_future<U>>(const T &)> ok,
+		/** Optional chained handler for when we fail */
+		std::function<std::shared_ptr<leaf_future<U>>(base_future::exception &)> err = nullptr
+	) {
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
+		auto f = leaf_future<U>::create();
+		on_done([self, ok, f]() {
+#if FUTURE_TRACE
+			TRACE << "Marking me as done" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			if(ok) {
+				auto inner = ok(self->get());
+				inner->propagate(f);
+			} else {
+				// FIXME no
+				// f->done();
+			}
+		});
+		on_fail([self, err, f](exception &ex) {
+#if FUTURE_TRACE
+			TRACE << "Marking me as failed" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			if(err)
+				err(ex)->propagate(f);
+			else
+				f->fail(ex);
+		});
+		on_cancel([self, f]() {
+#if FUTURE_TRACE
+			TRACE << "Marking me as cancelled" << " on " << self->label_;
+#endif
+			if(f->is_ready()) return;
+			f->cancel();
+		});
+		return f;
+	}
+
+	std::shared_ptr<leaf_future<T>>
+	propagate(std::shared_ptr<leaf_future<T>> f) {
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
+		on_done([self, f]() {
+			f->done(self->get());
+		});
+		on_cancel([f]() {
+			f->cancel();
+		});
+		on_fail([f](exception &e) {
+			f->fail(e);
+		});
+		return f;
+	}
 
 private:
 #if FUTURE_TRACE
