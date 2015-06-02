@@ -34,7 +34,7 @@ public:
 	}
 
 	ptr on_done(std::function<void()> in) {
-		auto self = shared_from_this();
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
 		auto code = [in](const T&) {
 			in();
 		};
