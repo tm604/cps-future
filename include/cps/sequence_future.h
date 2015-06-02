@@ -31,7 +31,7 @@ public:
 
 	template<typename U>
 	std::shared_ptr<leaf_future<U>>
-	as()
+	as_leaf()
 	{
 		if(!is_done())
 			throw base_future::ready_exception();

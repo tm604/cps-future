@@ -56,7 +56,7 @@ public:
 
 	template<typename U>
 	std::shared_ptr<leaf_future<U>>
-	as()
+	as_leaf()
 	{
 		if(type() != leaf)
 			throw type_exception();
