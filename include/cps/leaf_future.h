@@ -47,7 +47,7 @@ public:
 	}
 
 	ptr on_done(std::function<void(const T&)> code) {
-		auto self = shared_from_this();
+		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
 		if(!is_ready()) {
 			on_done_.push_back(code);
 			return self;
@@ -73,7 +73,7 @@ public:
 				TRACE << "trying handler " << (void*)(&it) << " on " << label_;
 #endif
 				try {
-					(it)();
+					(it)(v);
 				} catch(std::string ex) {
 					std::cerr << "Exception in callback - " << ex;
 				} catch(...) {
