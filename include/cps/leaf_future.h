@@ -33,6 +33,29 @@ public:
 		return value_;
 	}
 
+	ptr on_done(std::function<void()> in) {
+		auto self = shared_from_this();
+		auto code = [in](const T&) {
+			in();
+		};
+		if(!is_ready()) {
+			on_done_.push_back(code);
+			return self;
+		} 
+		if(is_done()) code(get());
+		return self;
+	}
+
+	ptr on_done(std::function<void(const T&)> code) {
+		auto self = shared_from_this();
+		if(!is_ready()) {
+			on_done_.push_back(code);
+			return self;
+		} 
+		if(is_done()) code(get());
+		return self;
+	}
+
 	ptr done(const T &v) {
 		auto self = std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
 #if FUTURE_TRACE
@@ -203,6 +226,9 @@ private:
 #if FUTURE_TRACE
 	std::string item_type_;
 #endif
+
+protected:
+	std::vector<std::function<void(const T&)>> on_done_;
 };
 
 template<typename T>
@@ -225,7 +251,7 @@ public:
 		return value_;
 	}
 
-	ptr done(const T v) {
+	ptr done(const std::shared_ptr<T> v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
 		TRACE << " ->done() was " << describe_state() << " on " << label_;
