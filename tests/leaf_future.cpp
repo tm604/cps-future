@@ -20,36 +20,98 @@ using namespace cps;
 
 BOOST_AUTO_TEST_CASE(leaf_future_string)
 {
-	auto f = leaf_future<std::string>::create();
-    BOOST_CHECK(f);
-    BOOST_CHECK(!f->is_ready());
-    BOOST_CHECK(!f->is_done());
-    BOOST_CHECK(!f->is_failed());
-    BOOST_CHECK(!f->is_cancelled());
-	f->done("test");
-    BOOST_CHECK( f->is_ready());
-    BOOST_CHECK( f->is_done());
-    BOOST_CHECK(!f->is_failed());
-    BOOST_CHECK(!f->is_cancelled());
-    BOOST_CHECK(f->get() == "test");
+	{
+		auto f = leaf_future<std::string>::create();
+		BOOST_CHECK(f);
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		f->done("test");
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		BOOST_CHECK(f->get() == "test");
+	}
+	{
+		auto f = leaf_future<std::string>::create();
+		f->on_done([f](const std::string &str) {
+			BOOST_CHECK(str == f->get());
+			BOOST_CHECK(str == "test");
+		});
+		f->done("test");
+	}
 }
 
 BOOST_AUTO_TEST_CASE(leaf_future_sequencing)
 {
-	/* Don't really care about the type, as long as it hits the default template (e.g. not
-	 * a specialised one like int)
-	 */
-	auto f = leaf_future<std::string>::create();
-	auto expected = "happy";
-	auto seq = f->then([expected](const std::string &v) {
-		BOOST_CHECK(v == expected);
-		return leaf_future<std::string>::create()->done("very happy");
-	});
-	BOOST_CHECK(seq->type() == base_future::sequence);
+	{
+		/* Don't really care about the type, as long as it hits the default template (e.g. not
+		 * a specialised one like int)
+		 */
+		auto f = leaf_future<std::string>::create();
+		auto expected = "happy";
+		auto seq = f->then([expected](const std::string &v) {
+			BOOST_CHECK(v == expected);
+			return leaf_future<std::string>::create()->done("very happy");
+		});
+		BOOST_CHECK(seq->type() == base_future::sequence);
 
-	f->done(expected);
-	BOOST_CHECK(seq->is_done());
-	BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
+		f->done(expected);
+		BOOST_CHECK(seq->is_done());
+		BOOST_CHECK(seq->as_leaf<std::string>()->get() == "very happy");
+	}
+	{
+		auto concat = leaf_future<std::string>::create("first string")->done(
+			"some"
+		)->leaf_then<std::string>([](const std::string &v) {
+			return leaf_future<std::string>::create("first concat")->done(
+				v + "times"
+			);
+		})->leaf_then<std::string>([](const std::string &v) {
+			return leaf_future<std::string>::create("second concat")->done(
+				v + " things"
+			);
+		})->leaf_then<std::string>([](const std::string &v) {
+			return leaf_future<std::string>::create("third concat")->done(
+				v + " just"
+			);
+		})->leaf_then<std::string>([](const std::string &v) {
+			return leaf_future<std::string>::create("fourth concat")->done(
+				v + " work"
+			);
+		})->get();
+		BOOST_CHECK(concat == "sometimes things just work");
+	}
+	{
+		DEBUG << "new test";
+		auto concat = leaf_future<int>::create("number 23")->done(
+			23
+		)->leaf_then<int>([](const int v) {
+			DEBUG << "first a number: " << v;
+			return leaf_future<int>::create("double 23")->done(
+				v * 2
+			);
+		})->leaf_then<std::string>([](const int v) {
+			DEBUG << "another number: " << v;
+			return leaf_future<std::string>::create("stringified 46")->done(
+				"had " + std::to_string(v) + " things"
+			);
+		})->leaf_then<std::string>([](const std::string &v) {
+			DEBUG << "and a thing: " << v;
+			return leaf_future<std::string>::create("concat 46")->done(
+				"we " + v
+			);
+		})->leaf_then<std::pair<std::string, size_t>>([](const std::string &v) {
+			DEBUG << "with a whatever: " << v;
+			return leaf_future<std::pair<std::string, size_t>>::create("a tuple")->done(
+				std::pair<std::string, size_t>(v, v.size())
+			);
+		})->get();
+		BOOST_CHECK(concat.first == "we had 46 things");
+		BOOST_CHECK(concat.second == 17);
+	}
 }
 
 /* int is special-cased to avoid references */
