@@ -16,9 +16,11 @@ public:
 
 	static
 	ptr
-	create() {
-		struct accessor : public leaf_future<T> { };
-		return std::make_shared<accessor>();
+	create(
+		const std::string &l = "unknown leaf future"
+	) {
+		// struct accessor : public leaf_future<T> { };
+		return std::make_shared<leaf_future<T>>(l);
 	}
 
 	const T &get() const {
@@ -63,11 +65,11 @@ public:
 		return self;
 	}
 
-private:
 	leaf_future(
-	)
+		const std::string &l = "unknown leaf future"
+	):base_future(l)
 #if FUTURE_TRACE
-	 :item_type_{ item_type() }
+	 ,item_type_{ item_type() }
 #endif
 	{
 #if FUTURE_TRACE
@@ -81,7 +83,6 @@ virtual ~leaf_future() {
 #endif
 	}
 
-public:
 	std::shared_ptr<sequence_future>
 	then(
 		/** Chained handler for dealing with success */
