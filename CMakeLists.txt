@@ -75,7 +75,7 @@ install(
 	DESTINATION include
 )
 install(
-	TARGETS cps-future
+	TARGETS ${Future_LIBRARY}
 	ARCHIVE DESTINATION lib
 )
 
