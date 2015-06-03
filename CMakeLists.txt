@@ -13,10 +13,15 @@ find_package(Boost COMPONENTS chrono system thread log unit_test_framework REQUI
 
 include_directories(include/)
 
+set(Future_LIBRARY cps-future)
+add_library(
+	${Future_LIBRARY}
+	src/future.cpp
+)
+
 add_executable(
 	future_tests
 	tests/future.cpp
-	include/cps/future.h
 )
 
 if(THREADS_HAVE_PTHREAD_ARG)
@@ -25,12 +30,15 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(future_tests "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(future_tests ${Boost_LIBRARIES})
+target_link_libraries(
+	future_tests
+	${Future_LIBRARY}
+	${Boost_LIBRARIES}
+)
 
 add_executable(
 	leaf_future_tests
 	tests/leaf_future.cpp
-	include/cps/future.h
 )
 
 if(THREADS_HAVE_PTHREAD_ARG)
@@ -39,12 +47,15 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(leaf_future_tests "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(leaf_future_tests ${Boost_LIBRARIES})
+target_link_libraries(
+	leaf_future_tests
+	${Future_LIBRARY}
+	${Boost_LIBRARIES}
+)
 
 add_executable(
 	benchmark
 	src/benchmark.cpp
-	include/cps/future.h
 )
 
 if(THREADS_HAVE_PTHREAD_ARG)
@@ -53,11 +64,19 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(benchmark "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(benchmark ${Boost_LIBRARIES})
+target_link_libraries(
+	benchmark
+	${Future_LIBRARY}
+	${Boost_LIBRARIES}
+)
 
 install(
 	DIRECTORY include/
 	DESTINATION include
+)
+install(
+	TARGETS cps-future
+	ARCHIVE DESTINATION lib
 )
 
 include (CTest)
