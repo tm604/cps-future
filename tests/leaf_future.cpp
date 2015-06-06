@@ -4,7 +4,9 @@
 #endif
 #define BOOST_TEST_MODULE LeafFutureTests
 
+#include <boost/mpl/list.hpp>
 #include <boost/test/unit_test.hpp>
+#include <boost/test/test_case_template.hpp>
 
 /* For symbol_thingey */
 #define BOOST_CHRONO_VERSION 2
@@ -53,23 +55,47 @@ BOOST_AUTO_TEST_CASE(leaf_future_string)
 	}
 }
 
-BOOST_AUTO_TEST_CASE(leaf_future_bool)
+/* integer types are special-cased, to avoid references */
+typedef boost::mpl::list<
+	int
+//	uint8_t, int8_t,
+//	uint16_t, int16_t,
+//	uint32_t, int32_t,
+//	uint64_t, int64_t,
+//	short, int, long, long long
+> leaf_integral_types;
+BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_int, T, leaf_integral_types)
 {
 	{
-		auto f = leaf_future<bool>::create();
-		f->on_done([f](bool v) {
-			BOOST_CHECK(v);
-		});
-		f->done(true);
-		BOOST_CHECK(f->get());
+		auto f = leaf_future<T>::create();
+		BOOST_CHECK(f);
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		f->done(123);
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		BOOST_CHECK(f->get() == 123);
 	}
 	{
-		auto f = leaf_future<bool>::create();
-		f->on_done([f](bool v) {
-			BOOST_CHECK(!v);
-		});
-		f->done(false);
-		BOOST_CHECK(!f->get());
+		auto f = leaf_future<T>::create();
+		f->cancel();
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK( f->is_cancelled());
+	}
+	{
+		auto f = leaf_future<T>::create();
+		f->fail("something");
+		DEBUG << "Elapsed: " << boost::chrono::symbol_format << f->elapsed();
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK( f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
 	}
 }
 
@@ -144,39 +170,23 @@ BOOST_AUTO_TEST_CASE(leaf_future_sequencing)
 	}
 }
 
-/* int is special-cased to avoid references */
-BOOST_AUTO_TEST_CASE(leaf_future_int)
+BOOST_AUTO_TEST_CASE(leaf_future_bool)
 {
 	{
-		auto f = leaf_future<int>::create();
-		BOOST_CHECK(f);
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
-		f->done(123);
-		BOOST_CHECK( f->is_ready());
-		BOOST_CHECK( f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
-		BOOST_CHECK(f->get() == 123);
+		auto f = leaf_future<bool>::create();
+		f->on_done([f](bool v) {
+			BOOST_CHECK(v);
+		});
+		f->done(true);
+		BOOST_CHECK(f->get());
 	}
 	{
-		auto f = leaf_future<int>::create();
-		f->cancel();
-		BOOST_CHECK( f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK( f->is_cancelled());
-	}
-	{
-		auto f = leaf_future<int>::create();
-		f->fail("something");
-		DEBUG << "Elapsed: " << boost::chrono::symbol_format << f->elapsed();
-		BOOST_CHECK( f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK( f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
+		auto f = leaf_future<bool>::create();
+		f->on_done([f](bool v) {
+			BOOST_CHECK(!v);
+		});
+		f->done(false);
+		BOOST_CHECK(!f->get());
 	}
 }
 

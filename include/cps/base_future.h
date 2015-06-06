@@ -23,7 +23,7 @@
 
 namespace cps {
 
-template<typename T> class leaf_future;
+// template<typename T> class leaf_future;
 class sequence_future;
 
 /**
@@ -53,7 +53,7 @@ public:
 		sequence,
 		leaf
 	};
-
+#if 0
 	template<typename U>
 	std::shared_ptr<leaf_future<U>>
 	as_leaf()
@@ -63,7 +63,7 @@ public:
 
 		return std::dynamic_pointer_cast<leaf_future<U>>(shared_from_this());
 	}
-
+#endif
 	virtual const future_type type() const { return base; }
 
 	/** Holds information about a failure */
@@ -80,8 +80,8 @@ public:
 
 		virtual ~exception() { }
 
-		std::exception &ex() const { return *ex_; }
-		const std::string &reason() const { return reason_; }
+		virtual std::exception &ex() const { return *ex_; }
+		virtual const std::string &reason() const { return reason_; }
 
 	private:
 		std::shared_ptr<std::exception> ex_;
@@ -154,6 +154,7 @@ virtual ~base_future() {
 	 * If something has gone badly wrong, this will report unknown with the actual numerical
 	 * state in (). This usually indicates memory corruption or a deleted object.
 	 */
+	virtual
 	std::string
 	describe_state() const
 	{
@@ -180,7 +181,8 @@ virtual ~base_future() {
 	 * Marks this base_future as done.
 	 * Subclasses should override this to accept a value.
 	 */
-	ptr done() {
+	virtual ptr
+	done() {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
 		TRACE << " ->done() was " << describe_state() << " on " << label_;
@@ -214,7 +216,8 @@ virtual ~base_future() {
 	/**
 	 * Marks this base_future as failed.
 	 */
-	ptr fail(
+	virtual ptr
+	fail(
 		exception &ex
 	) {
 		ex_ = std::unique_ptr<exception>(new exception(ex));
@@ -224,7 +227,7 @@ virtual ~base_future() {
 	/**
 	 * Marks this base_future as failed.
 	 */
-	ptr fail(
+	virtual ptr fail(
 		std::shared_ptr<std::exception> ex,
 		const std::string &component = u8"unknown"
 	) {
@@ -240,7 +243,7 @@ virtual ~base_future() {
 	/**
 	 * Marks this base_future as failed.
 	 */
-	ptr fail(
+	virtual ptr fail(
 		const std::string &ex,
 		const std::string &component = u8"unknown"
 	) {
@@ -257,7 +260,7 @@ virtual ~base_future() {
 	 * Adds code to the list of things that should be called when this base_future
 	 * resolves, regardless of state.
 	 */
-	ptr on_ready(std::function<void(ptr)> code) {
+	virtual ptr on_ready(std::function<void(ptr)> code) {
 		auto self = shared_from_this();
 		auto handler = [self, code]() { code(self); };
 		on_done(handler);
@@ -271,7 +274,7 @@ virtual ~base_future() {
 	 * Attaches this base_future to another base_future, so that we get resolved with
 	 * the same state as the other base_future.
 	 */
-	ptr propagate(ptr f) {
+	virtual ptr propagate(ptr f) {
 #if FUTURE_TRACE
 		TRACE << "propagating " << f->describe_state() << " from " << describe_state() << " on " << label_;
 #endif
@@ -287,9 +290,9 @@ virtual ~base_future() {
 		return f;
 	}
 
-private:
+protected:
 
-	ptr fail() {
+	virtual ptr fail() {
 		auto self = shared_from_this();
 		mark_ready(failed);
 		on_done_.clear();
@@ -312,7 +315,7 @@ private:
 	}
 
 public:
-	ptr cancel() {
+	virtual ptr cancel() {
 		auto self = shared_from_this();
 		mark_ready(cancelled);
 		on_done_.clear();
@@ -335,9 +338,9 @@ public:
 
 	static ptr complete_base_future() { auto f = create(); f->done(); return f; }
 
-	std::shared_ptr<sequence_future> then(seq ok, std::function<ptr(exception&)> err = nullptr);
+	virtual std::shared_ptr<sequence_future> then(seq ok, std::function<ptr(exception&)> err = nullptr);
 
-	ptr on_done(std::function<void()> code) {
+	virtual ptr on_done(std::function<void()> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_done_.push_back(code);
@@ -347,7 +350,7 @@ public:
 		return self;
 	}
 
-	ptr on_cancel(std::function<void()> code) {
+	virtual ptr on_cancel(std::function<void()> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_cancel_.push_back(code);
@@ -357,7 +360,7 @@ public:
 		return self;
 	}
 
-	ptr on_fail(std::function<void(exception&)> code) {
+	virtual ptr on_fail(std::function<void(exception&)> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_fail_.push_back(code);
@@ -372,7 +375,8 @@ public:
 	bool is_failed() const { return state_ == state::failed; }
 	bool is_done() const { return state_ == state::complete; }
 	bool is_cancelled() const { return state_ == state::cancelled; }
-	std::string failure() const {
+
+	virtual std::string failure() const {
 		if(!is_failed())
 			throw fail_exception(u8"this base_future is not failed");
 		return ex_->reason();
@@ -391,7 +395,7 @@ public:
 protected:
 	/** Used internally to mark this base_future as ready. Takes a single parameter
 	 * which indicates the state - failed, completed, cancelled */
-	void mark_ready(state s) {
+	virtual void mark_ready(state s) {
 		state_ = s;
 #if FUTURE_TIMERS
 		resolved_ = boost::chrono::high_resolution_clock::now();
