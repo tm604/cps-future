@@ -37,23 +37,6 @@ target_link_libraries(
 )
 
 add_executable(
-	leaf_future_tests
-	tests/leaf_future.cpp
-)
-
-if(THREADS_HAVE_PTHREAD_ARG)
-	target_compile_options(PUBLIC leaf_future_tests "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-	target_link_libraries(leaf_future_tests "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-target_link_libraries(
-	leaf_future_tests
-	${Future_LIBRARY}
-	${Boost_LIBRARIES}
-)
-
-add_executable(
 	benchmark
 	src/benchmark.cpp
 )
