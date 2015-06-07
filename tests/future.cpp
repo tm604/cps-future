@@ -15,7 +15,7 @@
 
 #define FUTURE_TRACE 0
 
-#include <future2.h>
+#include <cps/future.h>
 #include "Log.h"
 
 using namespace cps;
@@ -23,28 +23,31 @@ using namespace std;
 
 BOOST_AUTO_TEST_CASE(leaf_future_string)
 {
-	future<int> f { };
-	BOOST_CHECK(!f.is_ready());
-	BOOST_CHECK(!f.is_done());
-	BOOST_CHECK(!f.is_failed());
-	BOOST_CHECK(!f.is_cancelled());
-	auto f2 = move(f.done(445).on_done([](int v) {
+	{ /* shared_ptr interface means this is about as far as we can get with these: */
+		future<int> f { };
+		BOOST_CHECK(!f.is_ready());
+		BOOST_CHECK(!f.is_done());
+		BOOST_CHECK(!f.is_failed());
+		BOOST_CHECK(!f.is_cancelled());
+	}
+	auto f = future<int>::create_shared();
+	auto f2 = f->done(445)->on_done([](int v) {
 		BOOST_CHECK_EQUAL(v, 445);
 		cout << "Have value " << v << endl;
-	}).then<string>([](int v) {
+	})->then<string>([](int v) {
 		BOOST_CHECK_EQUAL(v, 445);
 		cout << "Value is still " << v << endl;
-		return future<string> { };
-	}).on_done([](string v) {
+		return future<string>::create_shared();
+	})->on_done([](string v) {
 		BOOST_CHECK_EQUAL(v, "test");
 		cout << "New futue is " << v << endl;
-	}).done("test").on_done([](string v) {
+	})->done("test")->on_done([](string v) {
 		BOOST_CHECK_EQUAL(v, "test");
 		cout << "Finally " << v << endl;
-	}).on_done([](const string &v) {
+	})->on_done([](const string &v) {
 		BOOST_CHECK_EQUAL(v, "test");
 		cout << "Alternatively " << v << endl;
-	}));
+	});
 }
 
 typedef boost::mpl::list<
@@ -53,30 +56,58 @@ typedef boost::mpl::list<
 	uint16_t, int16_t,
 	uint32_t, int32_t,
 	uint64_t, int64_t,
-	short, int, long, long long
+	short, int, long, long long,
+	float, double
 > leaf_integral_types;
 BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_integral, T, leaf_integral_types)
 {
-	future<T> f { };
-	BOOST_CHECK(!f.is_ready());
-	BOOST_CHECK(!f.is_done());
-	BOOST_CHECK(!f.is_failed());
-	BOOST_CHECK(!f.is_cancelled());
-	auto f2 = move(f.done(17).on_done([](T v) {
-		BOOST_CHECK_EQUAL(v, 17);
-		cout << "Have value " << v << endl;
-	}));
+	{
+		auto f = future<T>::create_shared();
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		// Pick a smallish number that fits all the numeric types
+		f->done(17)->on_done([](T v) {
+			BOOST_CHECK_EQUAL(v, 17);
+			cout << "Have value " << v << endl;
+		});
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+	}
+	{
+		auto f = future<T>::create_shared();
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK(!f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+		// Pick a smallish number that fits all the numeric types
+		f->fail("some problem")->on_fail([](const std::string &err) {
+			BOOST_CHECK_EQUAL(err, "some problem");
+		});
+		BOOST_CHECK( f->is_ready());
+		BOOST_CHECK(!f->is_done());
+		BOOST_CHECK( f->is_failed());
+		BOOST_CHECK(!f->is_cancelled());
+	}
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_other, T, boost::mpl::list<
 	bool
 >)
 {
-	future<T> f { };
-	BOOST_CHECK(!f.is_ready());
-	BOOST_CHECK(!f.is_done());
-	BOOST_CHECK(!f.is_failed());
-	BOOST_CHECK(!f.is_cancelled());
+	auto f = future<T>::create_shared();
+	BOOST_CHECK(!f->is_ready());
+	BOOST_CHECK(!f->is_done());
+	BOOST_CHECK(!f->is_failed());
+	BOOST_CHECK(!f->is_cancelled());
+	f->done(true);
+	BOOST_CHECK( f->is_ready());
+	BOOST_CHECK( f->is_done());
+	BOOST_CHECK(!f->is_failed());
+	BOOST_CHECK(!f->is_cancelled());
 }
 
 BOOST_AUTO_TEST_CASE(composition_needs_all)
