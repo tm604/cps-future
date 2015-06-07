@@ -83,6 +83,22 @@ public:
 		});
 	}
 
+	std::shared_ptr<future<T>> on_cancel(std::function<void(future<T> &)> code)
+	{
+		return call_when_ready([code](future<T> &f) {
+			if(f.is_cancelled())
+				code(f);
+		});
+	}
+
+	std::shared_ptr<future<T>> on_cancel(std::function<void()> code)
+	{
+		return call_when_ready([code](future<T> &f) {
+			if(f.is_cancelled())
+				code();
+		});
+	}
+
 	std::shared_ptr<future<T>> on_cancel(std::function<void()> code)
 	{
 		return call_when_ready([code](future<T> &f) {
@@ -124,7 +140,7 @@ public:
 				auto inner = ok(me.value())
 					->on_done([f](U v) { f->done(v); })
 					->on_fail([f](const std::string &msg) { f->fail(msg); })
-					->on_cancelled([f]() { f->fail("cancelled"); });
+					->on_cancel([f]() { f->fail("cancelled"); });
 				inner->on_ready([inner](const future<U> &) { });
 				// f->on_cancel([inner]() { inner->cancel(); });
 			}
@@ -132,7 +148,7 @@ public:
 				auto inner = err(me.failure_reason())
 					->on_done([f](U v) { f->done(v); })
 					->on_fail([f](const std::string &msg) { f->fail(msg); })
-					->on_cancelled([f]() { f->fail("cancelled"); });
+					->on_cancel([f]() { f->fail("cancelled"); });
 				inner->on_ready([inner](const future<U> &) { });
 				// f->on_cancel([inner]() { inner->cancel(); });
 			}
