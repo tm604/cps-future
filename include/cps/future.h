@@ -125,7 +125,6 @@ public:
 		std::function<std::shared_ptr<future<U>>(std::string)> err = nullptr
 	)
 	{
-		std::lock_guard<std::mutex> guard { mutex_ };
 		auto f = future<U>::create_shared();
 		call_when_ready([f, ok, err](future<T> &me) {
 			if(me.is_done() && ok) {
