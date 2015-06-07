@@ -99,14 +99,6 @@ public:
 		});
 	}
 
-	std::shared_ptr<future<T>> on_cancel(std::function<void()> code)
-	{
-		return call_when_ready([code](future<T> &f) {
-			if(f.is_cancelled())
-				code();
-		});
-	}
-
 	std::shared_ptr<future<T>> done(T v)
 	{
 		return apply_state([&v](future<T>&f) {
