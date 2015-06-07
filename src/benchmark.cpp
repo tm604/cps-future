@@ -16,12 +16,11 @@ main(void)
 	auto start = boost::chrono::high_resolution_clock::now();
 	const int count = 100000;
 	for(int i = 0; i < count; ++i) {
-		auto f = leaf_future<std::string>::create();
+		auto f = future<std::string>::create_shared();
 		auto expected = "happy";
-		auto seq = f->then([expected](const std::string &v) {
-			return leaf_future<std::string>::create()->done("very happy");
-		});
-		f->done(expected);
+		f->on_done([expected](const std::string &v) {
+			// return future<std::string>::create_shared()->done("very happy");
+		})->done(expected);
 		// BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
 	}
 	auto elapsed = boost::chrono::high_resolution_clock::now() - start;
