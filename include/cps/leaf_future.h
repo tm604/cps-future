@@ -4,6 +4,9 @@
 
 namespace cps {
 
+/**
+ * Most of the value-storage handling is common between value, ref and pointer cases.
+ */
 
 template<
 	typename T,
@@ -23,11 +26,12 @@ public:
 	using value_type = Stored;
 	using value_ref = Passed;
 	using ptr = std::shared_ptr<typed_future<Stored, Passed>>;
+	using derived = std::shared_ptr<leaf_future<Stored>>;
 
 	virtual const base_future::future_type type() const { return base_future::leaf; }
 
-	virtual ptr shared_from_this() {
-		return std::dynamic_pointer_cast<typed_future<Stored, Passed>>(base_future::shared_from_this());
+	virtual derived shared_from_this() {
+		return std::dynamic_pointer_cast<leaf_future<Stored>>(base_future::shared_from_this());
 	}
 
 	template<typename U>
@@ -101,7 +105,8 @@ public:
 		return self;
 	}
 
-	ptr on_done(std::function<void(value_ref)> code) {
+	derived
+	on_done(std::function<void(value_ref)> code) {
 		auto self = shared_from_this();
 		if(!is_ready()) {
 			on_done_.push_back(code);
@@ -111,7 +116,8 @@ public:
 		return self;
 	}
 
-	ptr done(value_type v) {
+	derived
+	done(value_type v) {
 		auto self = shared_from_this();
 #if FUTURE_TRACE
 		TRACE << " ->done() was " << describe_state() << " on " << label_;
@@ -172,7 +178,8 @@ virtual ~typed_future() {
 		std::function<base_future::ptr(base_future::exception &)> err = nullptr
 	);
 
-	ptr propagate(ptr f) {
+	derived
+	propagate(ptr f) {
 		auto self = shared_from_this();
 		on_done([self, f]() {
 			f->done(self->get());
@@ -183,7 +190,7 @@ virtual ~typed_future() {
 		on_fail([f](base_future::exception &e) {
 			f->fail(e);
 		});
-		return f;
+		return self;
 	}
 
 private:
@@ -233,10 +240,6 @@ public:
 	) {
 		return std::make_shared<leaf_future<T>>(l);
 	}
-
-	virtual ptr shared_from_this() {
-		return std::dynamic_pointer_cast<leaf_future<T>>(base_future::shared_from_this());
-	}
 };
 
 // then we have pointers:
@@ -269,6 +272,7 @@ public:
 		return std::make_shared<leaf_future<T>>(l);
 	}
 
+#if 0
 	template<typename U>
 	std::shared_ptr<leaf_future<U>>
 	leaf_then(
@@ -312,6 +316,7 @@ public:
 		});
 		return f;
 	}
+#endif
 
 };
 
