@@ -2,7 +2,7 @@
 #if !defined( WIN32 )
     #define BOOST_TEST_DYN_LINK
 #endif
-#define BOOST_TEST_MODULE Future2Tests
+#define BOOST_TEST_MODULE FutureTests
 
 #include <boost/mpl/list.hpp>
 #include <boost/test/unit_test.hpp>
@@ -21,7 +21,7 @@
 using namespace cps;
 using namespace std;
 
-BOOST_AUTO_TEST_CASE(leaf_future_string)
+BOOST_AUTO_TEST_CASE(future_string)
 {
 	{ /* shared_ptr interface means this is about as far as we can get with these: */
 		future<int> f { };
@@ -58,8 +58,8 @@ typedef boost::mpl::list<
 	uint64_t, int64_t,
 	short, int, long, long long,
 	float, double
-> leaf_integral_types;
-BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_integral, T, leaf_integral_types)
+> integral_types;
+BOOST_AUTO_TEST_CASE_TEMPLATE(future_integral, T, integral_types)
 {
 	{
 		auto f = future<T>::create_shared();
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_integral, T, leaf_integral_types)
 	}
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_other, T, boost::mpl::list<
+BOOST_AUTO_TEST_CASE_TEMPLATE(future_other, T, boost::mpl::list<
 	bool
 >)
 {
@@ -108,6 +108,35 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(leaf_future_other, T, boost::mpl::list<
 	BOOST_CHECK( f->is_done());
 	BOOST_CHECK(!f->is_failed());
 	BOOST_CHECK(!f->is_cancelled());
+}
+
+BOOST_AUTO_TEST_CASE(future_then)
+{
+	auto f = future<int>::create_shared();
+	shared_ptr<future<string>> str1;
+	shared_ptr<future<bool>> bool1;
+	auto f2 = f->then<string>([&str1](int v) {
+		BOOST_CHECK_EQUAL(v, 23);
+		str1 = future<string>::create_shared();
+		return str1;
+	})->then<bool>([&bool1](string v) {
+		BOOST_CHECK_EQUAL(v, "testing");
+		bool1 = future<bool>::create_shared();
+		return bool1;
+	})->on_ready([&str1](future<bool> &in) {
+		BOOST_CHECK_EQUAL(str1->value(), "testing");
+		BOOST_CHECK(in.value());
+	});
+	BOOST_CHECK(!str1);
+	BOOST_CHECK(!bool1);
+	f->done(23);
+	BOOST_CHECK( str1);
+	BOOST_CHECK(!bool1);
+	str1->done("testing");
+	BOOST_CHECK_EQUAL( str1->value(), "testing");
+	BOOST_CHECK( bool1);
+	bool1->done(true);
+	BOOST_CHECK(bool1->value());
 }
 
 BOOST_AUTO_TEST_CASE(composition_needs_all)
@@ -182,7 +211,7 @@ BOOST_AUTO_TEST_CASE(composition_needs_any)
 		auto f1 = future<int>::create_shared();
 		auto f2 = future<string>::create_shared();
 
-		auto composed = needs_all(
+		auto composed = needs_any(
 			f1,
 			f2
 		);
@@ -191,7 +220,8 @@ BOOST_AUTO_TEST_CASE(composition_needs_any)
 		});
 		BOOST_CHECK(!composed->is_ready());
 		f1->done(432);
-		BOOST_CHECK(!composed->is_ready());
+		BOOST_CHECK( composed->is_ready());
+		BOOST_CHECK( composed->is_done());
 		f2->done("test");
 		BOOST_CHECK( composed->is_ready());
 		BOOST_CHECK( composed->is_done());
