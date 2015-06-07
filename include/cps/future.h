@@ -112,13 +112,35 @@ public:
 
 	template<typename U>
 	std::shared_ptr<future<U>>
-	then(std::function<future<U>(T)> code)
+	then(
+		std::function<std::shared_ptr<future<U>>(T)> ok  = nullptr,
+		std::function<std::shared_ptr<future<U>>(std::string)> err = nullptr
+	)
 	{
 		std::lock_guard<std::mutex> guard { mutex_ };
-		auto f = future<U>::shared_create();
-		auto pending = code(value_);
+		auto f = future<U>::create_shared();
+		call_when_ready([f, ok, err](future<T> &me) {
+			if(me.is_done() && ok) {
+				auto inner = ok(me.value())
+					->on_done([f](U v) { f->done(v); })
+					->on_fail([f](const std::string &msg) { f->fail(msg); })
+					->on_cancelled([f]() { f->fail("cancelled"); });
+				inner->on_ready([inner](const future<U> &) { });
+				// f->on_cancel([inner]() { inner->cancel(); });
+			}
+			if(me.is_failed() && err) {
+				auto inner = err(me.failure_reason())
+					->on_done([f](U v) { f->done(v); })
+					->on_fail([f](const std::string &msg) { f->fail(msg); })
+					->on_cancelled([f]() { f->fail("cancelled"); });
+				inner->on_ready([inner](const future<U> &) { });
+				// f->on_cancel([inner]() { inner->cancel(); });
+			}
+		});
 		return f;
 	}
+
+	void cancel() { }
 
 	bool is_ready() { return state_ != state::pending; }
 	bool is_done() { return state_ == state::done; }
