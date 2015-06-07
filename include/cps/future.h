@@ -132,16 +132,14 @@ public:
 					->on_done([f](U v) { f->done(v); })
 					->on_fail([f](const std::string &msg) { f->fail(msg); })
 					->on_cancel([f]() { f->fail("cancelled"); });
-				inner->on_ready([inner](const future<U> &) { });
-				// f->on_cancel([inner]() { inner->cancel(); });
+				f->on_cancel([inner]() { inner->cancel(); });
 			}
 			if(me.is_failed() && err) {
 				auto inner = err(me.failure_reason())
 					->on_done([f](U v) { f->done(v); })
 					->on_fail([f](const std::string &msg) { f->fail(msg); })
 					->on_cancel([f]() { f->fail("cancelled"); });
-				inner->on_ready([inner](const future<U> &) { });
-				// f->on_cancel([inner]() { inner->cancel(); });
+				f->on_cancel([inner]() { inner->cancel(); });
 			}
 		});
 		return f;
