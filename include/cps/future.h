@@ -11,6 +11,33 @@
 
 namespace cps {
 
+/**
+ * Holds information about a failure.
+ * This should really be called "future_failure" or similar, since although it
+ * contains an exception, it's not a subclass of std::exception.
+ */
+class future_exception {
+public:
+	future_exception(
+		std::shared_ptr<std::exception> e,
+		const std::string &component
+	):ex_(),
+	  component_(component),
+	  reason_(e->what())
+	{
+	}
+
+	virtual ~future_exception() = default;
+
+	virtual std::exception &ex() const { return *ex_; }
+	virtual const std::string &reason() const { return reason_; }
+
+private:
+	std::shared_ptr<std::exception> ex_;
+	std::string component_;
+	std::string reason_;
+};
+
 template<typename T>
 class future:public std::enable_shared_from_this<future<T>> {
 
@@ -20,6 +47,15 @@ public:
 	static std::shared_ptr<future<T>> create_shared() { return std::make_shared<future<T>>(); }
 
 	enum class state { pending, done, failed, cancelled };
+
+	class fail_exception : public std::runtime_error {
+	public:
+		fail_exception(
+			const std::string &msg
+		):std::runtime_error{ msg }
+		{
+		}
+	};
 
 #if CAN_COPY_FUTURES
 	/**
@@ -75,6 +111,14 @@ public:
 		});
 	}
 
+	std::shared_ptr<future<T>> on_fail(std::function<void(const future_exception&)> code)
+	{
+		return call_when_ready([code](future<T> &f) {
+			if(f.is_failed())
+				code(f.failure());
+		});
+	}
+
 	std::shared_ptr<future<T>> on_fail(std::function<void(std::string)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
@@ -106,10 +150,19 @@ public:
 		}, state::done);
 	}
 
-	std::shared_ptr<future<T>> fail(std::string v)
+	std::shared_ptr<future<T>> fail(
+		const std::string &ex,
+		const std::string &component = u8"unknown"
+	)
 	{
-		return apply_state([&v](future<T>&f) {
-			f.failure_reason_ = v;
+		auto fe = std::make_shared<fail_exception>(ex);
+		return apply_state([fe, &component](future<T>&f) {
+			f.ex_ = std::unique_ptr<future_exception>(
+				new future_exception(
+					fe,
+					component
+				)
+			);
 		}, state::failed);
 	}
 
@@ -151,9 +204,13 @@ public:
 	bool is_done() { return state_ == state::done; }
 	bool is_failed() { return state_ == state::failed; }
 	bool is_cancelled() { return state_ == state::cancelled; }
+	const future_exception &failure() const {
+		assert(state_ == state::failed);
+		return *ex_;
+	}
 	const std::string &failure_reason() const {
 		assert(state_ == state::failed);
-		return failure_reason_;
+		return ex_->reason();
 	}
 
 protected:
@@ -225,7 +282,7 @@ private:
 		future<T> &&src,
 		const std::lock_guard<std::mutex> &
 	):state_(move(src.state_)),
-	  failure_reason_(move(src.failure_reason_)),
+	  ex_(move(src.ex_)),
 	  tasks_(move(src.tasks_)),
 	  value_(move(src.value_))
 	{
@@ -235,7 +292,7 @@ private:
 protected:
 	mutable std::mutex mutex_;
 	std::atomic<state> state_;
-	std::string failure_reason_;
+	std::unique_ptr<future_exception> ex_;
 	std::vector<std::function<void(future<T> &)>> tasks_;
 	T value_;
 };
