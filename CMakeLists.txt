@@ -65,5 +65,4 @@ install(
 include (CTest)
 
 add_test (future_tests future_tests --log_level=all --log_format=XML --log_sink=future_tests.xml)
-add_test (leaf_future_tests leaf_future_tests --log_level=all --log_format=XML --log_sink=leaf_future_tests.xml)
 
