@@ -102,12 +102,16 @@ public:
 		return this->shared_from_this();
 	}
 
-	std::shared_ptr<future<T>> on_ready(std::function<void(future<T> &)> code)
+	/** Add a handler to be called when this future is marked as ready */
+	std::shared_ptr<future<T>>
+	on_ready(std::function<void(future<T> &)> code)
 	{
 		return call_when_ready(code);
 	}
 
-	std::shared_ptr<future<T>> on_done(std::function<void(T)> code)
+	/** Add a handler to be called when this future is marked as done */
+	std::shared_ptr<future<T>>
+	on_done(std::function<void(T)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_done())
@@ -115,7 +119,9 @@ public:
 		});
 	}
 
-	std::shared_ptr<future<T>> on_fail(std::function<void(const future_exception&)> code)
+	/** Add a handler to be called if this future fails */
+	std::shared_ptr<future<T>>
+	on_fail(std::function<void(const future_exception&)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_failed())
@@ -123,6 +129,7 @@ public:
 		});
 	}
 
+	/** Add a handler to be called if this future fails */
 	std::shared_ptr<future<T>> on_fail(std::function<void(std::string)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
@@ -131,6 +138,7 @@ public:
 		});
 	}
 
+	/** Add a handler to be called if this future is cancelled */
 	std::shared_ptr<future<T>> on_cancel(std::function<void(future<T> &)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
@@ -139,6 +147,7 @@ public:
 		});
 	}
 
+	/** Add a handler to be called if this future is cancelled */
 	std::shared_ptr<future<T>> on_cancel(std::function<void()> code)
 	{
 		return call_when_ready([code](future<T> &f) {
@@ -147,6 +156,7 @@ public:
 		});
 	}
 
+	/** Mark this future as done */
 	std::shared_ptr<future<T>> done(T v)
 	{
 		return apply_state([&v](future<T>&f) {
@@ -154,6 +164,7 @@ public:
 		}, state::done);
 	}
 
+	/** Mark this future as failed */
 	std::shared_ptr<future<T>> fail(
 		const std::string &ex,
 		const std::string &component = u8"unknown"
