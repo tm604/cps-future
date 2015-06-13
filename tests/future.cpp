@@ -112,31 +112,50 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(future_other, T, boost::mpl::list<
 
 BOOST_AUTO_TEST_CASE(future_then)
 {
-	auto f = future<int>::create_shared();
-	shared_ptr<future<string>> str1;
-	shared_ptr<future<bool>> bool1;
-	auto f2 = f->then<string>([&str1](int v) {
-		BOOST_CHECK_EQUAL(v, 23);
-		str1 = future<string>::create_shared();
-		return str1;
-	})->then<bool>([&bool1](string v) {
-		BOOST_CHECK_EQUAL(v, "testing");
-		bool1 = future<bool>::create_shared();
-		return bool1;
-	})->on_ready([&str1](future<bool> &in) {
-		BOOST_CHECK_EQUAL(str1->value(), "testing");
-		BOOST_CHECK(in.value());
-	});
-	BOOST_CHECK(!str1);
-	BOOST_CHECK(!bool1);
-	f->done(23);
-	BOOST_CHECK( str1);
-	BOOST_CHECK(!bool1);
-	str1->done("testing");
-	BOOST_CHECK_EQUAL( str1->value(), "testing");
-	BOOST_CHECK( bool1);
-	bool1->done(true);
-	BOOST_CHECK(bool1->value());
+	{ // Simple chaining
+		auto f = future<int>::create_shared();
+		shared_ptr<future<string>> str1;
+		shared_ptr<future<bool>> bool1;
+		auto f2 = f->then<string>([&str1](int v) {
+			BOOST_CHECK_EQUAL(v, 23);
+			str1 = future<string>::create_shared();
+			return str1;
+		})->then<bool>([&bool1](string v) {
+			BOOST_CHECK_EQUAL(v, "testing");
+			bool1 = future<bool>::create_shared();
+			return bool1;
+		})->on_ready([&str1](future<bool> &in) {
+			BOOST_CHECK_EQUAL(str1->value(), "testing");
+			BOOST_CHECK(in.value());
+		});
+		BOOST_CHECK(!str1);
+		BOOST_CHECK(!bool1);
+		f->done(23);
+		BOOST_CHECK( str1);
+		BOOST_CHECK(!bool1);
+		str1->done("testing");
+		BOOST_CHECK_EQUAL( str1->value(), "testing");
+		BOOST_CHECK( bool1);
+		bool1->done(true);
+		BOOST_CHECK(bool1->value());
+	}
+	{ // Error propagation
+		auto f = future<int>::create_shared();
+		auto f2 = f->then<int>([](int v) {
+			auto f = future<int>::create_shared();
+			f->fail("error in first ->then call");
+			return f;
+		})->then<int>([](int v) {
+			BOOST_CHECK(false);
+			return future<int>::create_shared();
+		});
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f2->is_ready());
+		f->done(32);
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK( f2->is_failed());
+		BOOST_CHECK_EQUAL( f2->failure_reason(), "error in first ->then call");
+	}
 }
 
 BOOST_AUTO_TEST_CASE(composition_needs_all)

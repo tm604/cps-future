@@ -180,19 +180,32 @@ public:
 	{
 		auto f = future<U>::create_shared();
 		call_when_ready([f, ok, err](future<T> &me) {
-			if(me.is_done() && ok) {
-				auto inner = ok(me.value())
-					->on_done([f](U v) { f->done(v); })
-					->on_fail([f](const std::string &msg) { f->fail(msg); })
-					->on_cancel([f]() { f->fail("cancelled"); });
-				f->on_cancel([inner]() { inner->cancel(); });
-			}
-			if(me.is_failed() && err) {
-				auto inner = err(me.failure_reason())
-					->on_done([f](U v) { f->done(v); })
-					->on_fail([f](const std::string &msg) { f->fail(msg); })
-					->on_cancel([f]() { f->fail("cancelled"); });
-				f->on_cancel([inner]() { inner->cancel(); });
+			if(me.is_done()) {
+				if(ok) {
+					auto inner = ok(me.value())
+						->on_done([f](U v) { f->done(v); })
+						->on_fail([f](const std::string &msg) { f->fail(msg); })
+						->on_cancel([f]() { f->fail("cancelled"); });
+					f->on_cancel([inner]() { inner->cancel(); });
+				} else {
+					/* We can only handle this case if U and T are the same */
+					f->fail("->then without ok callback");
+				}
+			} else if(me.is_failed()) {
+				if(err) {
+					auto inner = err(me.failure_reason())
+						->on_done([f](U v) { f->done(v); })
+						->on_fail([f](const std::string &msg) { f->fail(msg); })
+						->on_cancel([f]() { f->fail("cancelled"); });
+					f->on_cancel([inner]() { inner->cancel(); });
+				} else {
+					f->fail(
+						me.failure_reason(),
+						u8"chained future"
+					);
+				}
+			} else if(me.is_cancelled()) {
+				f->fail("cancelled");
 			}
 		});
 		return f;
