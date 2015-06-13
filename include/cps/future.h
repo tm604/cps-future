@@ -181,8 +181,12 @@ public:
 		}, state::failed);
 	}
 
+	/** Returns the current value for this future.
+	 * Will throw a std::runtime_error if we're not marked as done.
+	 */
 	T value() const {
-		assert(state_ == state::done);
+		if(state_ != state::done)
+			throw std::runtime_error("future is not complete");
 		return value_;
 	}
 
@@ -238,12 +242,15 @@ public:
 	bool is_done() { return state_ == state::done; }
 	bool is_failed() { return state_ == state::failed; }
 	bool is_cancelled() { return state_ == state::cancelled; }
+
 	const future_exception &failure() const {
-		assert(state_ == state::failed);
+		if(state_ != state::failed)
+			throw std::runtime_error("future is not failed");
 		return *ex_;
 	}
 	const std::string &failure_reason() const {
-		assert(state_ == state::failed);
+		if(state_ != state::failed)
+			throw std::runtime_error("future is not failed");
 		return ex_->reason();
 	}
 
