@@ -173,6 +173,26 @@ BOOST_AUTO_TEST_CASE(future_then)
 		BOOST_CHECK( f2->is_failed());
 		BOOST_CHECK_EQUAL( f2->failure_reason(), "bail out");
 	}
+	{ // two-arg ->then
+		auto f = future<int>::create_shared();
+		auto f2 = f->then<int>([](int v) {
+			auto f = future<int>::create_shared();
+			throw std::runtime_error("first stage fails");
+			return f;
+		})->then<int>([](int v) {
+			BOOST_CHECK(false);
+			return future<int>::create_shared();
+		}, [](const std::string &err) {
+			BOOST_CHECK_EQUAL(err, "first stage fails");
+			return future<int>::create_shared()->done(99);
+		});
+		BOOST_CHECK(!f->is_ready());
+		BOOST_CHECK(!f2->is_ready());
+		f->done(32);
+		BOOST_CHECK( f->is_done());
+		BOOST_CHECK( f2->is_done());
+		BOOST_CHECK_EQUAL( f2->value(), 99);
+	}
 }
 
 BOOST_AUTO_TEST_CASE(composition_needs_all)
