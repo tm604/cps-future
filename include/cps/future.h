@@ -238,10 +238,10 @@ public:
 
 	void cancel() { }
 
-	bool is_ready() { return state_ != state::pending; }
-	bool is_done() { return state_ == state::done; }
-	bool is_failed() { return state_ == state::failed; }
-	bool is_cancelled() { return state_ == state::cancelled; }
+	bool is_ready() const { return state_ != state::pending; }
+	bool is_done() const { return state_ == state::done; }
+	bool is_failed() const { return state_ == state::failed; }
+	bool is_cancelled() const { return state_ == state::cancelled; }
 
 	const future_exception &failure() const {
 		if(state_ != state::failed)
