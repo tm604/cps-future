@@ -78,10 +78,14 @@ public:
 
 	/**
 	 * Move constructor with locking semantics.
+	 * @param src source future to move from
 	 */
 	future(
 		future<T> &&src
-	):future(src, std::lock_guard<std::mutex>(src.mutex_))
+	):future(
+		std::move(src),
+		std::lock_guard<std::mutex>(src.mutex_)
+	 )
 	{
 	}
 
