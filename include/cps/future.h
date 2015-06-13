@@ -175,7 +175,7 @@ public:
 	std::shared_ptr<future<U>>
 	then(
 		std::function<std::shared_ptr<future<U>>(T)> ok  = nullptr,
-		std::function<std::shared_ptr<future<U>>(std::string)> err = nullptr
+		std::function<std::shared_ptr<future<U>>(const std::string &)> err = nullptr
 	)
 	{
 		auto f = future<U>::create_shared();
