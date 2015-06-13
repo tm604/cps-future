@@ -260,7 +260,8 @@ protected:
 	 * calls it immediately. Will obtain a lock during the
 	 * ready-or-queue check.
 	 */
-	std::shared_ptr<future<T>> call_when_ready(std::function<void(future<T> &)> code)
+	std::shared_ptr<future<T>>
+	call_when_ready(std::function<void(future<T> &)> code)
 	{
 		bool ready = false;
 		{
