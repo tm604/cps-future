@@ -1,10 +1,7 @@
 /* For symbol_thingey */
-#define BOOST_CHRONO_VERSION 2
-#include <boost/chrono/chrono.hpp>
-#include <boost/chrono/chrono_io.hpp>
+#include <chrono>
 
 #define FUTURE_TRACE 0
-
 #include <cps/future.h>
 #include <iostream>
 
@@ -13,7 +10,7 @@ using namespace cps;
 int
 main(void)
 {
-	auto start = boost::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
 	const int count = 100000;
 	for(int i = 0; i < count; ++i) {
 		auto f = future<std::string>::create_shared();
@@ -23,7 +20,11 @@ main(void)
 		})->done(expected);
 		// BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
 	}
-	auto elapsed = boost::chrono::high_resolution_clock::now() - start;
-	std::cout << "Average iteration: " << boost::chrono::symbol_format << (elapsed / (float)count) << std::endl;
+	auto elapsed = std::chrono::high_resolution_clock::now() - start;
+	std::cout
+		<< "Average iteration: "
+		<< (std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() / (float)count)
+		<< " ns"
+		<< std::endl;
 	return 0;
 }
