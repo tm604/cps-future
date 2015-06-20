@@ -1,12 +1,9 @@
-#define BOOST_TEST_MAIN
-#if !defined( WIN32 )
-    #define BOOST_TEST_DYN_LINK
-#endif
-#define BOOST_TEST_MODULE FutureTests
+#include <cps/future.h>
+
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 #include <boost/mpl/list.hpp>
-#include <boost/test/unit_test.hpp>
-#include <boost/test/test_case_template.hpp>
 
 /* For symbol_thingey */
 #define BOOST_CHRONO_VERSION 2
@@ -15,316 +12,171 @@
 
 #define FUTURE_TRACE 0
 
-#include <cps/future.h>
-#include "Log.h"
+// #include "Log.h"
 
 using namespace cps;
 using namespace std;
 
-BOOST_AUTO_TEST_CASE(future_string)
-{
-	{ /* shared_ptr interface means this is about as far as we can get with these: */
+#define ok CHECK
+
+SCENARIO("future as an object", "[string]") {
+	GIVEN("an empty future") {
 		future<int> f { };
-		BOOST_CHECK(!f.is_ready());
-		BOOST_CHECK(!f.is_done());
-		BOOST_CHECK(!f.is_failed());
-		BOOST_CHECK(!f.is_cancelled());
-	}
-	auto f = future<int>::create_shared();
-	auto f2 = f->done(445)->on_done([](int v) {
-		BOOST_CHECK_EQUAL(v, 445);
-		cout << "Have value " << v << endl;
-	})->then<string>([](int v) {
-		BOOST_CHECK_EQUAL(v, 445);
-		cout << "Value is still " << v << endl;
-		return future<string>::create_shared();
-	})->on_done([](string v) {
-		BOOST_CHECK_EQUAL(v, "test");
-		cout << "New futue is " << v << endl;
-	})->done("test")->on_done([](string v) {
-		BOOST_CHECK_EQUAL(v, "test");
-		cout << "Finally " << v << endl;
-	})->on_done([](const string &v) {
-		BOOST_CHECK_EQUAL(v, "test");
-		cout << "Alternatively " << v << endl;
-	});
-}
-
-typedef boost::mpl::list<
-	int,
-	uint8_t, int8_t,
-	uint16_t, int16_t,
-	uint32_t, int32_t,
-	uint64_t, int64_t,
-	short, int, long, long long,
-	float, double
-> integral_types;
-BOOST_AUTO_TEST_CASE_TEMPLATE(future_integral, T, integral_types)
-{
-	{
-		auto f = future<T>::create_shared();
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
-		// Pick a smallish number that fits all the numeric types
-		f->done(17)->on_done([](T v) {
-			BOOST_CHECK_EQUAL(v, 17);
-			cout << "Have value " << v << endl;
-		});
-		BOOST_CHECK( f->is_ready());
-		BOOST_CHECK( f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
-	}
-	{
-		auto f = future<T>::create_shared();
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK(!f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
-		// Pick a smallish number that fits all the numeric types
-		f->fail("some problem")->on_fail([](const std::string &err) {
-			BOOST_CHECK_EQUAL(err, "some problem");
-		});
-		BOOST_CHECK( f->is_ready());
-		BOOST_CHECK(!f->is_done());
-		BOOST_CHECK( f->is_failed());
-		BOOST_CHECK(!f->is_cancelled());
+		ok(!f.is_ready());
+		ok(!f.is_done());
+		ok(!f.is_failed());
+		ok(!f.is_cancelled());
 	}
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(future_other, T, boost::mpl::list<
-	bool
->)
-{
-	auto f = future<T>::create_shared();
-	BOOST_CHECK(!f->is_ready());
-	BOOST_CHECK(!f->is_done());
-	BOOST_CHECK(!f->is_failed());
-	BOOST_CHECK(!f->is_cancelled());
-	f->done(true);
-	BOOST_CHECK( f->is_ready());
-	BOOST_CHECK( f->is_done());
-	BOOST_CHECK(!f->is_failed());
-	BOOST_CHECK(!f->is_cancelled());
-}
-
-BOOST_AUTO_TEST_CASE(future_then)
-{
-	{ // Simple chaining
+SCENARIO("future as a shared pointer", "[string][shared]") {
+	GIVEN("an empty future") {
 		auto f = future<int>::create_shared();
-		shared_ptr<future<string>> str1;
-		shared_ptr<future<bool>> bool1;
-		auto f2 = f->then<string>([&str1](int v) {
-			BOOST_CHECK_EQUAL(v, 23);
-			str1 = future<string>::create_shared();
-			return str1;
-		})->then<bool>([&bool1](string v) {
-			BOOST_CHECK_EQUAL(v, "testing");
-			bool1 = future<bool>::create_shared();
-			return bool1;
-		})->on_ready([&str1](future<bool> &in) {
-			BOOST_CHECK_EQUAL(str1->value(), "testing");
-			BOOST_CHECK(in.value());
-		});
-		BOOST_CHECK(!str1);
-		BOOST_CHECK(!bool1);
-		f->done(23);
-		BOOST_CHECK( str1);
-		BOOST_CHECK(!bool1);
-		str1->done("testing");
-		BOOST_CHECK_EQUAL( str1->value(), "testing");
-		BOOST_CHECK( bool1);
-		bool1->done(true);
-		BOOST_CHECK(bool1->value());
-	}
-	{ // Error propagation
-		auto f = future<int>::create_shared();
-		auto f2 = f->then<int>([](int v) {
-			auto f = future<int>::create_shared();
-			f->fail("error in first ->then call");
-			return f;
-		})->then<int>([](int v) {
-			BOOST_CHECK(false);
-			return future<int>::create_shared();
-		});
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f2->is_ready());
-		f->done(32);
-		BOOST_CHECK( f->is_done());
-		BOOST_CHECK( f2->is_failed());
-		BOOST_CHECK_EQUAL( f2->failure_reason(), "error in first ->then call");
-	}
-	{ // Exception propagation
-		auto f = future<int>::create_shared();
-		auto f2 = f->then<int>([](int v) {
-			auto f = future<int>::create_shared();
-			throw std::runtime_error("bail out");
-			return f;
-		})->then<int>([](int v) {
-			BOOST_CHECK(false);
-			return future<int>::create_shared();
-		});
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f2->is_ready());
-		f->done(32);
-		BOOST_CHECK( f->is_done());
-		BOOST_CHECK( f2->is_failed());
-		BOOST_CHECK_EQUAL( f2->failure_reason(), "bail out");
-	}
-	{ // two-arg ->then
-		auto f = future<int>::create_shared();
-		auto f2 = f->then<int>([](int v) {
-			auto f = future<int>::create_shared();
-			throw std::runtime_error("first stage fails");
-			return f;
-		})->then<int>([](int v) {
-			BOOST_CHECK(false);
-			return future<int>::create_shared();
-		}, [](const std::string &err) {
-			BOOST_CHECK_EQUAL(err, "first stage fails");
-			return future<int>::create_shared()->done(99);
-		});
-		BOOST_CHECK(!f->is_ready());
-		BOOST_CHECK(!f2->is_ready());
-		f->done(32);
-		BOOST_CHECK( f->is_done());
-		BOOST_CHECK( f2->is_done());
-		BOOST_CHECK_EQUAL( f2->value(), 99);
-	}
-}
-
-BOOST_AUTO_TEST_CASE(composition_needs_all)
-{
-	{
-		auto f1 = future<int>::create_shared();
-		auto f2 = future<string>::create_shared();
-
-		auto composed = needs_all(
-			f1,
-			f2
-		);
-		composed->on_ready([](future<int> &f) {
-			cout << "ready" << endl;
-		});
-		BOOST_CHECK(!composed->is_ready());
-		f1->done(432);
-		BOOST_CHECK(!composed->is_ready());
-		f2->done("test");
-		BOOST_CHECK( composed->is_ready());
-		BOOST_CHECK( composed->is_done());
-	}
-	{
-		auto f1 = future<int>::create_shared();
-		auto f2 = future<string>::create_shared();
-
-		auto composed = needs_all(
-			f1,
-			f2
-		);
-		composed->on_ready([](future<int> &f) {
-			BOOST_CHECK(f.is_ready());
-		});
-		BOOST_CHECK(!composed->is_ready());
-		f1->fail("aiee");
-		BOOST_CHECK( composed->is_ready());
-		BOOST_CHECK( composed->is_failed());
-	}
-	{
-		std::vector<std::shared_ptr<future<int>>> pending {
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared()
-		};
-
-		auto composed = needs_all(
-			pending
-		);
-		composed->on_ready([](future<int> &f) {
-			BOOST_CHECK(f.is_ready());
-		});
-		BOOST_CHECK(!composed->is_ready());
-		int i = 0;
-		for(auto &it : pending) {
-			it->done(++i);
-			if(i == pending.size()) {
-				BOOST_CHECK( composed->is_done());
-			} else {
-				BOOST_CHECK(!composed->is_ready());
+		ok(!f->is_ready());
+		ok(!f->is_done());
+		ok(!f->is_failed());
+		ok(!f->is_cancelled());
+		WHEN("marked as done") {
+			f->done(123);
+			THEN("state is correct") {
+				ok( f->is_ready());
+				ok( f->is_done());
+				ok(!f->is_failed());
+				ok(!f->is_cancelled());
 			}
 		}
-		BOOST_CHECK( composed->is_ready());
-	}
-}
-
-BOOST_AUTO_TEST_CASE(composition_needs_any)
-{
-	{
-		auto f1 = future<int>::create_shared();
-		auto f2 = future<string>::create_shared();
-
-		auto composed = needs_any(
-			f1,
-			f2
-		);
-		composed->on_ready([](future<int> &f) {
-			cout << "ready" << endl;
-		});
-		BOOST_CHECK(!composed->is_ready());
-		f1->done(432);
-		BOOST_CHECK( composed->is_ready());
-		BOOST_CHECK( composed->is_done());
-		f2->done("test");
-		BOOST_CHECK( composed->is_ready());
-		BOOST_CHECK( composed->is_done());
-	}
-	{
-		auto f1 = future<int>::create_shared();
-		auto f2 = future<string>::create_shared();
-
-		auto composed = needs_all(
-			f1,
-			f2
-		);
-		composed->on_ready([](future<int> &f) {
-			BOOST_CHECK(f.is_ready());
-		});
-		BOOST_CHECK(!composed->is_ready());
-		f1->fail("aiee");
-		BOOST_CHECK( composed->is_ready());
-		BOOST_CHECK( composed->is_failed());
-	}
-	{
-		std::vector<std::shared_ptr<future<int>>> pending {
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared(),
-			future<int>::create_shared()
-		};
-
-		auto composed = needs_all(
-			pending
-		);
-		composed->on_ready([](future<int> &f) {
-			BOOST_CHECK(f.is_ready());
-		});
-		BOOST_CHECK(!composed->is_ready());
-		int i = 0;
-		for(auto &it : pending) {
-			it->done(++i);
-			if(i == pending.size()) {
-				BOOST_CHECK( composed->is_done());
-			} else {
-				BOOST_CHECK(!composed->is_ready());
+		WHEN("marked as failed") {
+			f->fail("...");
+			THEN("state is correct") {
+				ok( f->is_ready());
+				ok(!f->is_done());
+				ok( f->is_failed());
+				ok(!f->is_cancelled());
 			}
 		}
-		BOOST_CHECK( composed->is_ready());
+		WHEN("marked as cancelled") {
+			f->cancel();
+			THEN("state is correct") {
+				ok( f->is_ready());
+				ok(!f->is_done());
+				ok(!f->is_failed());
+				ok( f->is_cancelled());
+			}
+		}
 	}
 }
 
+SCENARIO("failed future handling", "[string][shared]") {
+	GIVEN("a failed future") {
+		auto f = future<int>::create_shared();
+		f->fail("some reason");
+		REQUIRE( f->is_ready());
+		REQUIRE(!f->is_done());
+		REQUIRE( f->is_failed());
+		REQUIRE(!f->is_cancelled());
+		WHEN("we call ->failure_reason") {
+			auto reason = f->failure_reason();
+			THEN("we get the failure reason") {
+				ok(reason == "some reason");
+			}
+		}
+		WHEN("we call ->value") {
+			THEN("we get an exception") {
+				REQUIRE_THROWS(f->value());
+			}
+		}
+	}
+}
+
+SCENARIO("successful future handling", "[string][shared]") {
+	GIVEN("a completed future") {
+		auto f = future<string>::create_shared();
+		f->done("all good");
+		REQUIRE( f->is_ready());
+		REQUIRE( f->is_done());
+		REQUIRE(!f->is_failed());
+		REQUIRE(!f->is_cancelled());
+		WHEN("we call ->failure_reason") {
+			THEN("we get an exception") {
+				REQUIRE_THROWS(f->failure_reason());
+			}
+		}
+		WHEN("we call ->value") {
+			THEN("we get the original value") {
+				ok(f->value() == "all good");
+			}
+		}
+	}
+}
+
+SCENARIO("cancelled future handling", "[string][shared]") {
+	GIVEN("a cancelled future") {
+		auto f = future<string>::create_shared();
+		f->cancel();
+		REQUIRE( f->is_ready());
+		REQUIRE(!f->is_done());
+		REQUIRE(!f->is_failed());
+		REQUIRE( f->is_cancelled());
+		WHEN("we call ->failure_reason") {
+			THEN("we get an exception") {
+				REQUIRE_THROWS(f->failure_reason());
+			}
+		}
+		WHEN("we call ->value") {
+			THEN("we get an exception") {
+				REQUIRE_THROWS(f->value());
+			}
+		}
+	}
+}
+
+SCENARIO("needs_all", "[composed][string][shared]") {
+	GIVEN("an empty list of futures") {
+		auto na = needs_all();
+		WHEN("we check status") {
+			THEN("it reports as complete") {
+				ok(na->is_done());
+			}
+		}
+	}
+	GIVEN("some pending futures") {
+		auto f1 = future<int>::create_shared();
+		auto f2 = future<int>::create_shared();
+		auto na = needs_all(f1, f2);
+		ok(!na->is_ready());
+		ok(!na->is_done());
+		ok(!na->is_failed());
+		ok(!na->is_cancelled());
+		WHEN("f1 marked as done") {
+			f1->done(123);
+			THEN("needs_all is still pending") {
+				ok(!na->is_ready());
+			}
+		}
+		WHEN("f2 marked as done") {
+			f2->done(123);
+			THEN("needs_all is still pending") {
+				ok(!na->is_ready());
+			}
+		}
+		WHEN("all dependents marked as done") {
+			f1->done(34);
+			f2->done(123);
+			THEN("needs_all is complete") {
+				ok(na->is_done());
+			}
+		}
+		WHEN("a dependent fails") {
+			f1->fail("...");
+			THEN("needs_all is now failed") {
+				ok(na->is_failed());
+			}
+		}
+		WHEN("a dependent is cancelled") {
+			f1->cancel();
+			THEN("needs_all is now failed") {
+				ok(na->is_failed());
+			}
+		}
+	}
+}

@@ -12,6 +12,7 @@ add_definitions(-DBOOST_LOG_DYN_LINK)
 find_package(Boost COMPONENTS chrono system thread log unit_test_framework REQUIRED)
 
 include_directories(include/)
+include_directories(deps/)
 
 set(Future_LIBRARY cps-future)
 add_library(
