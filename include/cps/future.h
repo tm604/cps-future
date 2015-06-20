@@ -236,7 +236,11 @@ public:
 		return f;
 	}
 
-	void cancel() { }
+	std::shared_ptr<future<T>>
+	cancel() {
+		return apply_state([](future<T>&f) {
+		}, state::cancelled);
+	}
 
 	bool is_ready() const { return state_ != state::pending; }
 	bool is_done() const { return state_ == state::done; }
