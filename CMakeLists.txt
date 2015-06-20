@@ -8,9 +8,6 @@ set (VERSION_MINOR 0)
 
 add_definitions(-std=c++11)
 
-add_definitions(-DBOOST_LOG_DYN_LINK)
-find_package(Boost COMPONENTS chrono system thread log unit_test_framework REQUIRED)
-
 include_directories(include/)
 include_directories(deps/)
 
@@ -34,7 +31,6 @@ endif()
 target_link_libraries(
 	future_tests
 	${Future_LIBRARY}
-	${Boost_LIBRARIES}
 )
 
 add_executable(
@@ -51,7 +47,6 @@ endif()
 target_link_libraries(
 	benchmark
 	${Future_LIBRARY}
-	${Boost_LIBRARIES}
 )
 
 install(
