@@ -75,5 +75,5 @@ install(
 
 include (CTest)
 
-add_test (future_tests future_tests --log_level=all --log_format=XML --log_sink=future_tests.xml)
+add_test (future_tests future_tests -r junit -o future_tests.xml)
 
