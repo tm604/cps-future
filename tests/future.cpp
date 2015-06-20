@@ -1,18 +1,8 @@
+#define FUTURE_TRACE 0
 #include <cps/future.h>
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-
-#include <boost/mpl/list.hpp>
-
-/* For symbol_thingey */
-#define BOOST_CHRONO_VERSION 2
-#include <boost/chrono/chrono.hpp>
-#include <boost/chrono/chrono_io.hpp>
-
-#define FUTURE_TRACE 0
-
-// #include "Log.h"
 
 using namespace cps;
 using namespace std;
