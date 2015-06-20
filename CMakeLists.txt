@@ -1,12 +1,27 @@
 cmake_minimum_required(VERSION 2.8)
 
 PROJECT(libcps-future)
+option(USE_CLANG "build application with clang" OFF)
+if(USE_CLANG)
+	set(CMAKE_CXX_COMPILER "/usr/bin/clang++-3.6")
+endif()
 enable_testing()
 
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
 
-add_definitions(-std=c++11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(warnings "-Wall -Wextra -Wconversion")
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    set(warnings "/W4 /WX /EHsc")
+endif()
+if (NOT CONFIGURED_ONCE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${warnings}"
+        CACHE STRING "Flags used by the compiler during all build types." FORCE)
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${warnings}"
+        CACHE STRING "Flags used by the compiler during all build types." FORCE)
+endif()
 
 include_directories(include/)
 include_directories(deps/)
