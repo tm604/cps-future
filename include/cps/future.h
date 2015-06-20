@@ -343,27 +343,8 @@ protected:
 	T value_;
 };
 
-#if 0
-class thingey {
-public:
-	add()
-	{
-		if(f->is_ready()) return;
-		if(!in.is_done()) {
-			f->fail("error");
-			return;
-		}
-		f->done(0);
-	}
-
-protected:
-	mutable std::mutex mutex_;
-	atomic<size_t> remaining_;
-};
-#endif
-
 /* Degenerate case - no futures => instant success */
-static
+static inline
 std::shared_ptr<future<int>>
 needs_all()
 {
@@ -374,7 +355,7 @@ needs_all()
 
 /* Base case - single future */
 template<typename T>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_all(std::shared_ptr<future<T>> first)
 {
@@ -393,7 +374,7 @@ needs_all(std::shared_ptr<future<T>> first)
 
 /* Allow runtime-varying list too */
 template<typename T>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_all(std::vector<std::shared_ptr<future<T>>> first)
 {
@@ -413,7 +394,7 @@ needs_all(std::vector<std::shared_ptr<future<T>>> first)
 }
 
 template<typename T, typename ... Types>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_all(std::shared_ptr<future<T>> first, Types ... rest)
 {
@@ -434,7 +415,7 @@ needs_all(std::shared_ptr<future<T>> first, Types ... rest)
 }
 
 /* Degenerate case - no futures => instant fail */
-static
+static inline
 std::shared_ptr<future<int>>
 needs_any()
 {
@@ -445,7 +426,7 @@ needs_any()
 
 /* Base case - single future */
 template<typename T>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_any(std::shared_ptr<future<T>> first)
 {
@@ -454,7 +435,7 @@ needs_any(std::shared_ptr<future<T>> first)
 
 /* Allow runtime-varying list too */
 template<typename T>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_any(std::vector<std::shared_ptr<future<T>>> first)
 {
@@ -473,7 +454,7 @@ needs_any(std::vector<std::shared_ptr<future<T>>> first)
 }
 
 template<typename T, typename ... Types>
-static
+static inline
 std::shared_ptr<future<int>>
 needs_any(std::shared_ptr<future<T>> first, Types ... rest)
 {
