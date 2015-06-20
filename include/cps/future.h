@@ -238,7 +238,7 @@ public:
 
 	std::shared_ptr<future<T>>
 	cancel() {
-		return apply_state([](future<T>&f) {
+		return apply_state([](future<T>&) {
 		}, state::cancelled);
 	}
 
