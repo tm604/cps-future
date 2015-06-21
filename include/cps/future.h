@@ -384,7 +384,6 @@ protected:
 	  tasks_(src.tasks_),
 	  value_(src.value_)
 	{
-		std::cout << "did the copy thing" << std::endl;
 	}
 //#endif
 
@@ -399,7 +398,6 @@ protected:
 	  tasks_(move(src.tasks_)),
 	  value_(move(src.value_))
 	{
-		std::cout << "we moved" << std::endl;
 	}
 
 protected:
