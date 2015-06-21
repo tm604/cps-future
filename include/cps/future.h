@@ -268,6 +268,7 @@ public:
 			 * dealing with external APIs.
 			 */
 			try {
+				if(f->is_ready()) return;
 				if(me.is_done()) {
 					/* If we completed, call the function (exceptions will translate to f->fail)
 					 * and set up propagation */
