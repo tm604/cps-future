@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <chrono>
 
 /**
  * This flag controls whether it's possible to copy-construct or assign
@@ -52,8 +53,16 @@ class future:public std::enable_shared_from_this<future<T>> {
 
 public:
 	/* Probably not very useful since the API is returning shared_ptr all over the shop */
-	static std::unique_ptr<future<T>> create() { return std::unique_ptr<future<T>>(new future<T>()); }
-	static std::shared_ptr<future<T>> create_shared() { return std::make_shared<future<T>>(); }
+	static std::unique_ptr<future<T>> create(
+		const std::string &label = u8"unlabelled future"
+	) {
+		return std::unique_ptr<future<T>>(new future<T>(label));
+	}
+	static std::shared_ptr<future<T>> create_shared(
+		const std::string &label = u8"unlabelled future"
+	) { return std::make_shared<future<T>>(label); }
+
+	using checkpoint = std::chrono::high_resolution_clock::time_point;
 
 	enum class state { pending, done, failed, cancelled };
 
@@ -99,11 +108,18 @@ public:
 	}
 
 	/** Default constructor - nothing special here */
-	future() = default;
+	future(
+		const std::string &label = u8"unlabelled future"
+	):state_(state::pending),
+	  label_(label),
+	  created_(std::chrono::high_resolution_clock::now())
+	{
+	}
+
 	/**
 	 * Default destructor too - virtual, in case anyone wants to subclass.
 	 */
-	virtual ~future() = default;
+	virtual ~future() { }
 
 	/** Returns the shared_ptr associated with this instance */
 	std::shared_ptr<future<T>>
@@ -326,6 +342,31 @@ public:
 		return ex_->reason();
 	}
 
+	/** Returns the label for this future */
+	const std::string &label() const { return label_; }
+
+	/**
+	 * Reports number of nanoseconds that have elapsed so far
+	 */
+	std::chrono::nanoseconds elapsed() const {
+		return (is_ready() ? resolved_ : std::chrono::high_resolution_clock::now()) - created_;
+	}
+
+	std::string current_state() const {
+		state s = state_;
+		switch(s) {
+		case state::pending: return u8"pending";
+		case state::failed: return u8"failed";
+		case state::cancelled: return u8"cancelled";
+		case state::done: return u8"done";
+		default: return u8"unknown";
+		}
+	}
+
+	std::string describe() const {
+		return label_ + " (" + current_state() + "), " + std::to_string(elapsed().count()) + "ns";
+	}
+
 protected:
 	/**
 	 * Queues the given function if we're not yet ready, otherwise
@@ -381,6 +422,8 @@ protected:
 			pending = std::move(tasks_);
 			tasks_.clear();
 			/* This must happen last */
+
+			resolved_ = std::chrono::high_resolution_clock::now();
 			state_ = s;
 		}
 		for(auto &v : pending) {
@@ -426,6 +469,12 @@ protected:
 	std::vector<std::function<void(future<T> &)>> tasks_;
 	/** The exception, if we failed */
 	std::unique_ptr<future_exception> ex_;
+	/** Label for his future */
+	std::string label_;
+	/** When we were created */
+	checkpoint created_;
+	/** When we were marked ready */
+	checkpoint resolved_;
 	/** The final value of the future, if we completed successfully */
 	T value_;
 };

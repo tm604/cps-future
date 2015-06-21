@@ -9,23 +9,15 @@ using namespace std;
 
 #define ok CHECK
 
-SCENARIO("future as an object", "[string]") {
-	GIVEN("an empty future") {
-		future<int> f { };
-		ok(!f.is_ready());
-		ok(!f.is_done());
-		ok(!f.is_failed());
-		ok(!f.is_cancelled());
-	}
-}
-
 SCENARIO("future as a shared pointer", "[string][shared]") {
 	GIVEN("an empty future") {
-		auto f = future<int>::create_shared();
+		auto f = future<int>::create_shared("some future");
 		ok(!f->is_ready());
 		ok(!f->is_done());
 		ok(!f->is_failed());
 		ok(!f->is_cancelled());
+		ok(f->current_state() == "pending");
+		ok(f->label() == "some future");
 		WHEN("marked as done") {
 			f->done(123);
 			THEN("state is correct") {
@@ -33,6 +25,13 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 				ok( f->is_done());
 				ok(!f->is_failed());
 				ok(!f->is_cancelled());
+				ok(f->current_state() == "done");
+			}
+			AND_THEN("elapsed is nonzero") {
+				ok(f->elapsed().count() > 0);
+			}
+			AND_THEN("description looks about right") {
+				ok(string::npos != f->describe().find("some future (done), "));
 			}
 		}
 		WHEN("marked as failed") {
@@ -42,6 +41,13 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 				ok(!f->is_done());
 				ok( f->is_failed());
 				ok(!f->is_cancelled());
+				ok(f->current_state() == "failed");
+			}
+			AND_THEN("elapsed is nonzero") {
+				ok(f->elapsed().count() > 0);
+			}
+			AND_THEN("description looks about right") {
+				ok(string::npos != f->describe().find("some future (failed), "));
 			}
 		}
 		WHEN("marked as cancelled") {
