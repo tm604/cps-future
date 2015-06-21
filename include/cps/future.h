@@ -372,7 +372,6 @@ protected:
 		return this->shared_from_this();
 	}
 
-private:
 //#if CAN_COPY_FUTURES
 	/**
 	 * Locked constructor for internal use.
