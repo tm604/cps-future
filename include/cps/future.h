@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 /**
  * This flag controls whether it's possible to copy-construct or assign
@@ -343,6 +344,23 @@ protected:
 			}
 		}
 		if(ready) code(*this);
+		return this->shared_from_this();
+	}
+
+	/**
+	 * Removes an existing callback from the list, if we have one.
+	 */
+	std::shared_ptr<future<T>>
+	remove_callback(std::function<void(future<T> &)> &code)
+	{
+		std::lock_guard<std::mutex> guard { mutex_ };
+		tasks_.erase(
+			std::remove_if(
+				begin(tasks_),
+				end(tasks_),
+				[&code](const std::function<void(future<T> &)> &it) { return code == it; }
+			)
+		);
 		return this->shared_from_this();
 	}
 
