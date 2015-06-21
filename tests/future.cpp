@@ -57,8 +57,16 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 				ok(!f->is_done());
 				ok(!f->is_failed());
 				ok( f->is_cancelled());
+				ok(f->current_state() == "cancelled");
+			}
+			AND_THEN("elapsed is nonzero") {
+				ok(f->elapsed().count() > 0);
+			}
+			AND_THEN("description looks about right") {
+				ok(string::npos != f->describe().find("some future (cancelled), "));
 			}
 		}
+		if(!f->is_ready()) f->cancel();
 	}
 }
 
@@ -244,7 +252,7 @@ SCENARIO("we can chain futures via ->then", "[composed][string][shared]") {
 			ok(v == "input");
 			called = true;
 			return success;
-		}, [failure, &errored](string v) {
+		}, [failure, &errored](string) {
 			errored = true;
 			return failure;
 		});
