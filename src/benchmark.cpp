@@ -15,10 +15,8 @@ main(void)
 	for(int i = 0; i < count; ++i) {
 		auto f = future<std::string>::create_shared();
 		auto expected = "happy";
-		f->on_done([expected](const std::string &v) {
-			// return future<std::string>::create_shared()->done("very happy");
+		f->on_done([expected](const std::string &) {
 		})->done(expected);
-		// BOOST_CHECK(seq->as<std::string>()->get() == "very happy");
 	}
 	auto elapsed = std::chrono::high_resolution_clock::now() - start;
 	std::cout
