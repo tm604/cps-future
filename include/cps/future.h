@@ -223,6 +223,10 @@ public:
 	/**
 	 * This is one of the basic building blocks for composing futures, and
 	 * is somewhat akin to an if/else statement.
+	 *
+	 * If the callback throws a std::exception, it will be caught and the
+	 * returned future will be marked as failed with that exception.
+	 *
 	 * @param ok the function that will be called if this future resolves
 	 * successfully. It is expected to return another future.
 	 * @param err an optional function to call if this future fails. This
@@ -353,6 +357,9 @@ public:
 		return (is_ready() ? resolved_ : std::chrono::high_resolution_clock::now()) - created_;
 	}
 
+	/**
+	 * Returns the current future state, as a string.
+	 */
 	std::string current_state() const {
 		state s = state_;
 		switch(s) {
@@ -364,6 +371,11 @@ public:
 		}
 	}
 
+	/**
+	 * Returns a string description of the current test, of the form:
+	 *
+	 *     Future label (done), 14234ns
+	 */
 	std::string describe() const {
 		return label_ + " (" + current_state() + "), " + std::to_string(elapsed().count()) + "ns";
 	}
