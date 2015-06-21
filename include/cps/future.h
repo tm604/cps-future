@@ -7,6 +7,13 @@
 #include <string>
 #include <vector>
 
+/**
+ * This flag controls whether it's possible to copy-construct or assign
+ * a cps::future. Normally this is undesirable: although it's possible
+ * to move a future, you normally wouldn't want to have stray copies,
+ * since this would break the callback guarantee ("you'll get called
+ * once or discarded").
+ */
 #define CAN_COPY_FUTURES 0
 
 namespace cps {
@@ -38,6 +45,8 @@ private:
 	std::string reason_;
 };
 
+/**
+ */
 template<typename T>
 class future:public std::enable_shared_from_this<future<T>> {
 
@@ -89,7 +98,11 @@ public:
 	{
 	}
 
+	/** Default constructor - nothing special here */
 	future() = default;
+	/**
+	 * Default destructor too - virtual, in case anyone wants to subclass.
+	 */
 	virtual ~future() = default;
 
 	/** Returns the shared_ptr associated with this instance */
@@ -181,7 +194,8 @@ public:
 		}, state::failed);
 	}
 
-	/** Returns the current value for this future.
+	/**
+	 * Returns the current value for this future.
 	 * Will throw a std::runtime_error if we're not marked as done.
 	 */
 	T value() const {
@@ -228,6 +242,7 @@ public:
 					f->fail("cancelled");
 				}
 			} catch(const future_exception &ex) {
+				/* FIXME Use a common exception object here instead */
 				f->fail(ex.reason());
 			} catch(const std::runtime_error &ex) {
 				f->fail(ex.what());
@@ -242,16 +257,30 @@ public:
 		}, state::cancelled);
 	}
 
+	/** Returns true if this future is ready (this includes cancelled, failed and done) */
 	bool is_ready() const { return state_ != state::pending; }
+	/** Returns true if this future completed successfully */
 	bool is_done() const { return state_ == state::done; }
+	/** Returns true if this future has failed */
 	bool is_failed() const { return state_ == state::failed; }
+	/** Returns true if this future is cancelled */
 	bool is_cancelled() const { return state_ == state::cancelled; }
+	/** Returns true if this future is not yet ready */
+	bool is_pending() const { return state_ == state::pending; }
 
+	/**
+	 * Returns the failure exception for this future.
+	 * @throws std::runtime_error if we are not yet ready or didn't fail
+	 */
 	const future_exception &failure() const {
 		if(state_ != state::failed)
 			throw std::runtime_error("future is not failed");
 		return *ex_;
 	}
+	/**
+	 * Returns the failure reason (string) for this future.
+	 * @throws std::runtime_error if we are not yet ready or didn't fail
+	 */
 	const std::string &failure_reason() const {
 		if(state_ != state::failed)
 			throw std::runtime_error("future is not failed");
@@ -336,10 +365,15 @@ private:
 	}
 
 protected:
+	/** Guard variable for serialising updates to the tasks_ member */
 	mutable std::mutex mutex_;
+	/** Current future state. Atomic so we can get+set from multiple threads without needing a full lock */
 	std::atomic<state> state_;
-	std::unique_ptr<future_exception> ex_;
+	/** The list of tasks to run when we are resolved */
 	std::vector<std::function<void(future<T> &)>> tasks_;
+	/** The exception, if we failed */
+	std::unique_ptr<future_exception> ex_;
+	/** The final value of the future, if we completed successfully */
 	T value_;
 };
 
