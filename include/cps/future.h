@@ -204,35 +204,74 @@ public:
 		return value_;
 	}
 
+	/**
+	 * This is one of the basic building blocks for composing futures, and
+	 * is somewhat akin to an if/else statement.
+	 * @param ok the function that will be called if this future resolves
+	 * successfully. It is expected to return another future.
+	 * @param err an optional function to call if this future fails. This
+	 * is also expected to return a future.
+	 * @returns a future of the same type as the ok callback will eventually
+	 * return
+	 */
 	template<typename U>
-	std::shared_ptr<future<U>>
-	then(
-		std::function<std::shared_ptr<future<U>>(T)> ok  = nullptr,
-		std::function<std::shared_ptr<future<U>>(const std::string &)> err = nullptr
-	)
+	inline
+	auto then(
+		/* We trust this to be something that is vaguely callable, and that
+		 * returns a shared_ptr-wrapped future. We use decltype and remove_reference
+		 * to tear the opaque U type apart, thus guaranteeing (*) that we'll
+		 * have a compilation failure if we get things wrong. Note that we
+		 * can't pass a std::function<> here, at least not easily, because then
+		 * the compiler is unable to deduce the function return type.
+		 */
+		U ok,
+		/* This one's easy - it must return the same type as ok(), and we allow
+		 * default no-op here too
+		 */
+		std::function<decltype(ok(T()))(const std::string &)> err = nullptr
+	) -> decltype(ok(T()))
 	{
-		auto f = future<U>::create_shared();
+		/* We extract the type returned by the callback in stages, in a vain
+		 * attempt to make this code easier to read
+		 */
+
+		/** The shared_ptr<future<X>> type */
+		using future_ptr_type = decltype(ok(T()));
+		/** The future<X> type */
+		using future_type = typename std::remove_reference<decltype(*(future_ptr_type().get()))>::type;
+		/** The X type, i.e. the type of the value held in the future */
+		using inner_type = decltype(future_type().value());
+
+		/* This is what we'll return to the immediate caller: when the real future is
+		 * available, we'll propagate the result onto f.
+		 */
+		auto f = future_type::create_shared();
 		call_when_ready([f, ok, err](future<T> &me) {
+			/* Either callback could throw an exception. That's fine - it's even encouraged,
+			 * since passing a future around to ->fail on is not likely to be much fun when
+			 * dealing with external APIs.
+			 */
 			try {
 				if(me.is_done()) {
-					if(ok) {
-						auto inner = ok(me.value())
-							->on_done([f](U v) { f->done(v); })
-							->on_fail([f](const std::string &msg) { f->fail(msg); })
-							->on_cancel([f]() { f->fail("cancelled"); });
-						f->on_cancel([inner]() { inner->cancel(); });
-					} else {
-						/* We can only handle this case if U and T are the same */
-						f->fail("->then without ok callback");
-					}
+					/* If we completed, call the function (exceptions will translate to f->fail)
+					 * and set up propagation */
+					auto inner = ok(me.value())
+						->on_done([f](inner_type v) { f->done(v); })
+						->on_fail([f](const std::string &msg) { f->fail(msg); })
+						->on_cancel([f]() { f->fail("cancelled"); });
+					/* TODO abandon vs. cancel */
+					f->on_cancel([inner]() { inner->cancel(); });
 				} else if(me.is_failed()) {
 					if(err) {
+						/* Don't give up just yet - the err callback may still succeed! */
 						auto inner = err(me.failure_reason())
-							->on_done([f](U v) { f->done(v); })
+							->on_done([f](inner_type v) { f->done(v); })
 							->on_fail([f](const std::string &msg) { f->fail(msg); })
 							->on_cancel([f]() { f->fail("cancelled"); });
+						/* TODO abandon vs. cancel */
 						f->on_cancel([inner]() { inner->cancel(); });
 					} else {
+						/* just give up here */
 						f->fail(
 							me.failure_reason(),
 							u8"chained future"
