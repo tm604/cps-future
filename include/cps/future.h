@@ -100,7 +100,8 @@ public:
 	 */
 	future(
 		future<T> &&src
-	):future(
+	) noexcept
+	 :future(
 		std::move(src),
 		std::lock_guard<std::mutex>(src.mutex_)
 	 )
@@ -455,6 +456,10 @@ protected:
 		const std::lock_guard<std::mutex> &
 	):state_(src.state_.load()),
 	  tasks_(src.tasks_),
+	  ex_(src.ex_),
+	  label_(src.label_),
+	  created_(src.created_),
+	  resolved_(src.resolved_),
 	  value_(src.value_)
 	{
 	}
@@ -466,10 +471,14 @@ protected:
 	future(
 		future<T> &&src,
 		const std::lock_guard<std::mutex> &
-	):state_(move(src.state_)),
-	  ex_(move(src.ex_)),
-	  tasks_(move(src.tasks_)),
-	  value_(move(src.value_))
+	) noexcept
+	 :state_(std::move(src.state_)),
+	  tasks_(std::move(src.tasks_)),
+	  ex_(std::move(src.ex_)),
+	  label_(std::move(src.label_)),
+	  created_(std::move(src.created_)),
+	  resolved_(std::move(src.resolved_)),
+	  value_(std::move(src.value_))
 	{
 	}
 
