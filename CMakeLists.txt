@@ -26,12 +26,6 @@ endif()
 include_directories(include/)
 include_directories(deps/)
 
-set(Future_LIBRARY cps-future)
-add_library(
-	${Future_LIBRARY}
-	src/future.cpp
-)
-
 add_executable(
 	future_tests
 	tests/future.cpp
@@ -43,10 +37,6 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(future_tests "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(
-	future_tests
-	${Future_LIBRARY}
-)
 
 add_executable(
 	benchmark
@@ -67,10 +57,6 @@ target_link_libraries(
 install(
 	DIRECTORY include/
 	DESTINATION include
-)
-install(
-	TARGETS ${Future_LIBRARY}
-	ARCHIVE DESTINATION lib
 )
 
 include (CTest)
