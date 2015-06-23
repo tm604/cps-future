@@ -49,9 +49,10 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(benchmark "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-target_link_libraries(
-	benchmark
-	${Future_LIBRARY}
+
+add_executable(
+	standalone_tests
+	tests/standalone.cpp
 )
 
 install(
