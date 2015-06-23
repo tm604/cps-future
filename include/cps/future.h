@@ -228,6 +228,11 @@ public:
 	 * If the callback throws a std::exception, it will be caught and the
 	 * returned future will be marked as failed with that exception.
 	 *
+	 * Callbacks will be passed either the current value, or the failure reason:
+	 *
+	 *  ok(this->value()) -> std::shared_ptr<future<X>>
+	 *  err(this->failure_reason()) -> std::shared_ptr<future<X>>
+	 *
 	 * @param ok the function that will be called if this future resolves
 	 * successfully. It is expected to return another future.
 	 * @param err an optional function to call if this future fails. This
