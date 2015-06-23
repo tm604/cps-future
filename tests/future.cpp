@@ -9,7 +9,7 @@ using namespace std;
 
 #define ok CHECK
 
-SCENARIO("future as a shared pointer", "[string][shared]") {
+SCENARIO("future as a shared pointer", "[shared]") {
 	GIVEN("an empty future") {
 		auto f = future<int>::create_shared("some future");
 		ok(!f->is_ready());
@@ -33,6 +33,11 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 			AND_THEN("description looks about right") {
 				ok(string::npos != f->describe().find("some future (done), "));
 			}
+			auto weak = std::weak_ptr<cps::future<int>>(f);
+			f.reset();
+			AND_THEN("shared_ptr goes away correctly") {
+				ok(weak.expired());
+			}
 		}
 		WHEN("marked as failed") {
 			f->fail("...");
@@ -48,6 +53,11 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 			}
 			AND_THEN("description looks about right") {
 				ok(string::npos != f->describe().find("some future (failed), "));
+			}
+			auto weak = std::weak_ptr<cps::future<int>>(f);
+			f.reset();
+			AND_THEN("shared_ptr goes away correctly") {
+				ok(weak.expired());
 			}
 		}
 		WHEN("marked as cancelled") {
@@ -65,12 +75,16 @@ SCENARIO("future as a shared pointer", "[string][shared]") {
 			AND_THEN("description looks about right") {
 				ok(string::npos != f->describe().find("some future (cancelled), "));
 			}
+			auto weak = std::weak_ptr<cps::future<int>>(f);
+			f.reset();
+			AND_THEN("shared_ptr goes away correctly") {
+				ok(weak.expired());
+			}
 		}
-		if(!f->is_ready()) f->cancel();
 	}
 }
 
-SCENARIO("failed future handling", "[string][shared]") {
+SCENARIO("failed future handling", "[shared]") {
 	GIVEN("a failed future") {
 		auto f = future<int>::create_shared();
 		f->fail("some reason");
@@ -92,7 +106,7 @@ SCENARIO("failed future handling", "[string][shared]") {
 	}
 }
 
-SCENARIO("successful future handling", "[string][shared]") {
+SCENARIO("successful future handling", "[shared]") {
 	GIVEN("a completed future") {
 		auto f = future<string>::create_shared();
 		f->done("all good");
@@ -113,7 +127,7 @@ SCENARIO("successful future handling", "[string][shared]") {
 	}
 }
 
-SCENARIO("cancelled future handling", "[string][shared]") {
+SCENARIO("cancelled future handling", "[shared]") {
 	GIVEN("a cancelled future") {
 		auto f = future<string>::create_shared();
 		f->cancel();
@@ -134,7 +148,7 @@ SCENARIO("cancelled future handling", "[string][shared]") {
 	}
 }
 
-SCENARIO("needs_all", "[composed][string][shared]") {
+SCENARIO("needs_all", "[composed][shared]") {
 	GIVEN("an empty list of futures") {
 		auto na = needs_all();
 		WHEN("we check status") {
@@ -185,7 +199,7 @@ SCENARIO("needs_all", "[composed][string][shared]") {
 	}
 }
 
-SCENARIO("we can chain futures via ->then", "[composed][string][shared]") {
+SCENARIO("we can chain futures via ->then", "[composed][shared]") {
 	GIVEN("a simple ->then chain") {
 		auto f1 = cps::future<string>::create_shared();
 		auto f2 = cps::future<string>::create_shared();
