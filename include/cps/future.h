@@ -506,6 +506,15 @@ protected:
 	T value_;
 };
 
+template<
+	typename T
+>
+std::shared_ptr<future<T>>
+resolved_future(T v)
+{
+	return future<T>::create_shared()->done(v);
+}
+
 /* Degenerate case - no futures => instant success */
 static inline
 std::shared_ptr<future<int>>
