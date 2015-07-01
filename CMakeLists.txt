@@ -9,6 +9,7 @@ enable_testing()
 
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
+set (VERSION_PATCH 4)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -64,3 +65,15 @@ include (CTest)
 
 add_test (future_tests future_tests -r junit -o future_tests.xml)
 
+include (InstallRequiredSystemLibraries)
+set (CPACK_PACKAGE_NAME "libcps-future")
+set (CPACK_PACKAGE_VENDOR "")
+set (CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
+set (CPACK_PACKAGE_CONTACT "Tom Molesworth <tom@perlsite.co.uk>")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "C++ futures implementation")
+set (CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.debian")
+set (CPACK_PACKAGE_FILE_NAME "libcps-future-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-1")
+set (CPACK_GENERATOR "TGZ;DEB")
+set (CPACK_DEBIAN_PACKAGE_SHLIBDEPS "OFF")
+include (CPack)
