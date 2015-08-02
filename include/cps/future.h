@@ -271,6 +271,82 @@ public:
 		return value_;
 	}
 
+	template<
+		typename U,
+		typename V,
+		typename std::enable_if<
+			is_string<
+				std::remove_pointer<
+					decltype(
+						arg_type_for(
+							&V::operator()
+						)
+					)
+				>
+			>::value,
+			bool
+		>::type * = nullptr
+	>
+	auto
+	exception_hoisting_callback(
+		U ok,
+		V code
+	) -> std::function<decltype(ok(T()))(const std::exception_ptr &)>
+	{
+		using return_type = decltype(ok(T()));
+		return [code](const std::exception_ptr &original) -> return_type {
+			try {
+				std::rethrow_exception(original);
+			} catch(const std::runtime_error &e) {
+				return code(e.what());
+			} catch(...) {
+				return nullptr;
+			}
+		};
+	}
+
+	/**
+	 * Returns a callback that will run the given code if the exception
+	 * is one that the code handles.
+	 * Otherwise, the callback returns nullptr.
+	 */
+	template<
+		typename U,
+		typename V,
+		typename std::enable_if<
+			!is_string<
+				std::remove_pointer<
+					decltype(
+						arg_type_for(
+							&V::operator()
+						)
+					)
+				>
+			>::value,
+			bool
+		>::type * = nullptr
+	>
+	auto
+	exception_hoisting_callback(
+		U ok,
+		V code
+	) -> std::function<
+		decltype(ok(T()))(const std::exception_ptr &)
+	>
+	{
+		using return_type = decltype(ok(T()));
+		typedef typename std::remove_pointer<decltype(arg_type_for(&V::operator()))>::type exception_type;
+		return [code](const std::exception_ptr &original) -> return_type {
+			try {
+				std::rethrow_exception(original);
+			} catch(const exception_type &e) {
+				return code(e);
+			} catch(...) {
+				return nullptr;
+			}
+		};
+	}
+
 	/**
 	 * This is one of the basic building blocks for composing futures, and
 	 * is somewhat akin to an if/else statement.
@@ -280,8 +356,8 @@ public:
 	 *
 	 * Callbacks will be passed either the current value, or the failure reason:
 	 *
-	 *  ok(this->value()) -> std::shared_ptr<future<X>>
-	 *  err(this->failure_reason()) -> std::shared_ptr<future<X>>
+	 * * ok(this->value()) -> std::shared_ptr<future<X>>
+	 * * err(this->failure_reason()) -> std::shared_ptr<future<X>>
 	 *
 	 * @param ok the function that will be called if this future resolves
 	 * successfully. It is expected to return another future.
@@ -290,7 +366,7 @@ public:
 	 * @returns a future of the same type as the ok callback will eventually
 	 * return
 	 */
-	template<typename U>
+	template<typename U, typename... Args>
 	inline
 	auto then(
 		/* We trust this to be something that is vaguely callable, and that
@@ -301,10 +377,11 @@ public:
 		 * the compiler is unable to deduce the function return type.
 		 */
 		U ok,
+		Args... err
 		/* This one's easy - it must return the same type as ok(), and we allow
 		 * default no-op here too
 		 */
-		std::function<decltype(ok(T()))(const std::string &)> err = nullptr
+		// std::function<decltype(ok(T()))(const std::string &)> err = nullptr
 	) -> decltype(ok(T()))
 	{
 		/* We extract the type returned by the callback in stages, in a vain
@@ -317,12 +394,20 @@ public:
 		using future_type = typename std::remove_reference<decltype(*(future_ptr_type().get()))>::type;
 		/** The X type, i.e. the type of the value held in the future */
 		using inner_type = decltype(future_type().value());
+		using return_type = decltype(ok(T()));
 
 		/* This is what we'll return to the immediate caller: when the real future is
 		 * available, we'll propagate the result onto f.
 		 */
 		auto f = future_type::create_shared();
-		call_when_ready([f, ok, err](future<T> &me) {
+		std::vector<std::function<return_type(const std::exception_ptr &)>> items {
+			exception_hoisting_callback(
+				ok,
+				err
+				// std::forward<Args>(err)
+			)...
+		};
+		call_when_ready([f, ok, items](future<T> &me) {
 			/* Either callback could throw an exception. That's fine - it's even encouraged,
 			 * since passing a future around to ->fail on is not likely to be much fun when
 			 * dealing with external APIs.
@@ -339,28 +424,26 @@ public:
 					/* TODO abandon vs. cancel */
 					f->on_cancel([inner]() { inner->cancel(); });
 				} else if(me.is_failed()) {
-					if(err) {
-						/* Don't give up just yet - the err callback may still succeed! */
-						auto inner = err(me.failure_reason())
-							->on_done([f](inner_type v) { f->done(v); })
-							->on_fail([f](const std::string &msg) { f->fail(msg); })
-							->on_cancel([f]() { f->fail("cancelled"); });
-						/* TODO abandon vs. cancel */
-						f->on_cancel([inner]() { inner->cancel(); });
-					} else {
-						/* just give up here */
-						f->fail(
-							me.failure_reason(),
-							u8"chained future"
-						);
+					for(auto &it : items) {
+						auto inner = it(me.ex_);
+						if(inner) {
+							inner->on_done([f](inner_type v) { f->done(v); })
+								->on_fail([f](const std::string &msg) { f->fail(msg); })
+								->on_cancel([f]() { f->fail("cancelled"); });
+							/* TODO abandon vs. cancel */
+							f->on_cancel([inner]() { inner->cancel(); });
+							return;
+						}
 					}
+					/* just give up here */
+					f->fail(
+						me.failure_reason(),
+						u8"chained future"
+					);
 				} else if(me.is_cancelled()) {
 					f->fail("cancelled");
 				}
-			} catch(const future_exception &ex) {
-				/* FIXME Use a common exception object here instead */
-				f->fail(ex.reason());
-			} catch(const std::runtime_error &ex) {
+			} catch(const std::exception &ex) {
 				f->fail(ex.what());
 			}
 		});
@@ -385,22 +468,13 @@ public:
 	bool is_pending() const { return state_ == state::pending; }
 
 	/**
-	 * Returns the failure exception for this future.
-	 * @throws std::runtime_error if we are not yet ready or didn't fail
-	 */
-	const future_exception &failure() const {
-		if(state_ != state::failed)
-			throw std::runtime_error("future is not failed");
-		return *ex_;
-	}
-	/**
 	 * Returns the failure reason (string) for this future.
 	 * @throws std::runtime_error if we are not yet ready or didn't fail
 	 */
 	const std::string &failure_reason() const {
 		if(state_ != state::failed)
 			throw std::runtime_error("future is not failed");
-		return ex_->reason();
+		return failure_reason_;
 	}
 
 	/** Returns the label for this future */
@@ -537,6 +611,8 @@ protected:
 	{
 	}
 
+	const std::exception_ptr &exception_ptr() const { return ex_; }
+
 protected:
 	/** Guard variable for serialising updates to the tasks_ member */
 	mutable std::mutex mutex_;
@@ -545,7 +621,9 @@ protected:
 	/** The list of tasks to run when we are resolved */
 	std::vector<std::function<void(future<T> &)>> tasks_;
 	/** The exception, if we failed */
-	std::unique_ptr<future_exception> ex_;
+	std::exception_ptr ex_;
+	/** The exception, if we failed */
+	std::string failure_reason_;
 	/** Label for his future */
 	std::string label_;
 	/** When we were created */
