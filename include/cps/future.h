@@ -157,21 +157,30 @@ public:
 	}
 
 	/** Add a handler to be called if this future fails */
-	std::shared_ptr<future<T>>
-	on_fail(std::function<void(const future_exception&)> code)
-	{
-		return call_when_ready([code](future<T> &f) {
-			if(f.is_failed())
-				code(f.failure());
-		});
-	}
-
-	/** Add a handler to be called if this future fails */
 	std::shared_ptr<future<T>> on_fail(std::function<void(std::string)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_failed())
 				code(f.failure_reason());
+		});
+	}
+
+	/** Add a handler to be called if this future fails */
+	template<typename E>
+	std::shared_ptr<future<T>>
+	on_fail(std::function<void(const E &)> code)
+	{
+		return call_when_ready([code](future<T> &f) {
+			if(f.is_failed() && f.exception_ptr()) {
+				try {
+					std::rethrow_exception(f.exception_ptr());
+				} catch(const T &e) {
+					/* If our exception matches our expected type, handle it */
+					code(e);
+				} catch(...) {
+					/* ... but skip any other exception types */
+				}
+			}
 		});
 	}
 
@@ -202,19 +211,53 @@ public:
 	}
 
 	/** Mark this future as failed */
-	std::shared_ptr<future<T>> fail(
-		const std::string &ex,
+	template<
+		typename U,
+		typename std::enable_if<
+			is_string<U>::value,
+			bool
+		>::type * = nullptr
+	>
+	std::shared_ptr<future<T>>
+	fail(
+		const U ex,
 		const std::string &component = u8"unknown"
 	)
 	{
-		auto fe = std::make_shared<fail_exception>(ex);
-		return apply_state([fe, &component](future<T>&f) {
-			f.ex_ = std::unique_ptr<future_exception>(
-				new future_exception(
-					fe,
-					component
-				)
-			);
+		// std::cout << "Calling string-handling fail()\n";
+		return fail(std::runtime_error(ex), component);
+	}
+
+	/**
+	 * Mark this future as failed with the given exception.
+	 */
+	template<
+		typename U,
+		typename std::enable_if<
+			!is_string<U>::value,
+			bool
+		>::type * = nullptr
+	>
+	std::shared_ptr<future<T>> fail(
+		const U ex,
+		const std::string &component = u8"unknown"
+	)
+	{
+		// std::cout << "Calling exception-handling fail()\n";
+		return apply_state([&ex, &component](future<T>&f) {
+			try {
+				// std::cout << "Will throw!\n";
+				throw ex;
+			} catch(const std::exception &e) {
+				// std::cout << "Will catch!\n";
+				f.ex_ = std::current_exception();
+				f.failure_reason_ = e.what();
+			} catch(...) {
+				// std::cout << "Will catch!\n";
+				f.ex_ = std::current_exception();
+				f.failure_reason_ = "unknown";
+			}
+			// std::cout << "We're done!\n";
 		}, state::failed);
 	}
 
