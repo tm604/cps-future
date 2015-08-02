@@ -7,6 +7,8 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <exception>
+#include <stdexcept>
 
 /**
  * This flag controls whether it's possible to copy-construct or assign
@@ -19,32 +21,37 @@
 
 namespace cps {
 
-/**
- * Holds information about a failure.
- * This should really be called "future_failure" or similar, since although it
- * contains an exception, it's not a subclass of std::exception.
- */
-class future_exception {
+template<typename C> class function_traits;
+
+template<typename R, typename C, typename Parameter>
+class function_traits<R (C::*)(const Parameter &) const> {
 public:
-	future_exception(
-		std::shared_ptr<std::exception> e,
-		const std::string &component
-	):ex_(),
-	  component_(component),
-	  reason_(e->what())
-	{
-	}
-
-	virtual ~future_exception() = default;
-
-	virtual std::exception &ex() const { return *ex_; }
-	virtual const std::string &reason() const { return reason_; }
-
-private:
-	std::shared_ptr<std::exception> ex_;
-	std::string component_;
-	std::string reason_;
+	typedef Parameter arg_type;
 };
+
+template<typename U> typename function_traits<U>::arg_type* arg_type_for(U);
+
+/**
+ * A template that indicates true for a string, false for any other type.
+ * The following types are considered to be strings:
+ * * std::string
+ * * const std::string
+ * * char *
+ * * const char *
+ */
+template<typename U>
+class is_string : public std::integral_constant<
+	bool,
+	std::is_same<
+		typename std::remove_cv<U>::type,
+		std::string
+	>::value
+	||
+	std::is_same<
+		typename std::remove_cv<typename std::remove_pointer<U>::type>::type,
+		char
+	>::value
+> { };
 
 /**
  */
