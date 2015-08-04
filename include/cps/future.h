@@ -166,8 +166,10 @@ public:
 	on_done(std::function<void(T)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
-			if(f.is_done())
+			if(f.is_done()) {
+				// std::cout << "will call value in ->on_Done handler\n";
 				code(f.value());
+			}
 		});
 	}
 
@@ -260,6 +262,7 @@ public:
 	{
 		// std::cout << "Calling exception-handling fail()\n";
 		return apply_state([&ex, &component](future<T>&f) {
+			f.failure_component_ = component;
 			try {
 				// std::cout << "Will throw!\n";
 				throw ex;
@@ -276,14 +279,60 @@ public:
 		}, state::failed);
 	}
 
+	template<typename U>
+	std::shared_ptr<
+		cps::future<T>
+	>
+	fail_from(const cps::future<U> &f) {
+		// std::cout << "->fail_from with " << describe() << " taking info from " << f.describe() << "\n";
+		if(!f.is_failed())
+			throw std::logic_error("future is not failed");
+
+		return apply_state([&f](future<T>&me) {
+			me.failure_component_ = f.failure_component();
+			try {
+				// std::cout << "Will throw!\n";
+				std::rethrow_exception(f.exception_ptr());
+			} catch(const std::exception &e) {
+				// std::cout << "Will catch!\n";
+				me.ex_ = std::current_exception();
+				me.failure_reason_ = e.what();
+			} catch(...) {
+				// std::cout << "Will catch!\n";
+				me.ex_ = std::current_exception();
+				me.failure_reason_ = "unknown";
+			}
+			// std::cout << "We're done!\n";
+		}, state::failed);
+	}
+
 	/**
 	 * Returns the current value for this future.
 	 * Will throw a std::runtime_error if we're not marked as done.
 	 */
 	T value() const {
-		if(state_ != state::done)
+		// std::cout << "calling ->value on " << describe() << "\n";
+		/* Only read this once */
+		const state s { state_ };
+		switch(s) {
+		case state::pending:
 			throw std::runtime_error("future is not complete");
-		return value_;
+		case state::failed:
+			if(ex_) {
+				if(std::uncaught_exception()) {
+					std::cerr << "Want to rethrow our exception, but we are already in an exception, so that's probably a bad idea\n";
+					return value_;
+				} else {
+					std::rethrow_exception(ex_);
+				}
+			} else {
+				throw std::logic_error("no exception available");
+			}
+		case state::cancelled:
+			throw std::runtime_error("future was cancelled");
+		default:
+			return value_;
+		}
 	}
 
 	template<
@@ -432,6 +481,7 @@ public:
 				if(me.is_done()) {
 					/* If we completed, call the function (exceptions will translate to f->fail)
 					 * and set up propagation */
+					// std::cout << "will call value in ->then handler for done status\n";
 					auto inner = ok(me.value())
 						->on_done([f](inner_type v) { f->done(v); })
 						->on_fail([f](const std::string &msg) { f->fail(msg); })
@@ -439,6 +489,9 @@ public:
 					/* TODO abandon vs. cancel */
 					f->on_cancel([inner]() { inner->cancel(); });
 				} else if(me.is_failed()) {
+					/* The original future failed, so we try each exception handler in turn
+					 * until we find one that matches. We'll stop after the first match.
+					 */
 					for(auto &it : items) {
 						auto inner = it(me.ex_);
 						if(inner) {
@@ -450,19 +503,33 @@ public:
 							return;
 						}
 					}
-					/* just give up here */
-					f->fail(
-						me.failure_reason(),
-						u8"chained future"
-					);
+					/* No handler was available, so we'll stick with the original failure */
+					f->fail_from(me);
 				} else if(me.is_cancelled()) {
 					f->fail("cancelled");
 				}
-			} catch(const std::exception &ex) {
-				f->fail(ex.what());
+			} catch(...) {
+				auto ex = std::current_exception();
+				f->fail_exception_pointer(ex);
 			}
 		});
 		return f;
+	}
+
+	std::shared_ptr<cps::future<T>>
+	fail_exception_pointer(const std::exception_ptr &ex)
+	{
+		return apply_state([&ex](future<T>&f) {
+			f.failure_component_ = "->then callback";
+			f.ex_ = ex;
+			try {
+				throw ex;
+			} catch(const std::exception &e) {
+				f.failure_reason_ = e.what();
+			} catch(...) {
+				f.failure_reason_ = "unknown";
+			}
+		}, state::failed);
 	}
 
 	std::shared_ptr<future<T>>
@@ -494,6 +561,10 @@ public:
 
 	/** Returns the label for this future */
 	const std::string &label() const { return label_; }
+	/** Returns the component which failed */
+	const std::string &failure_component() const { return failure_component_; }
+	/** Returns the component which failed */
+	const std::exception_ptr &exception_ptr() const { return ex_; }
 
 	/**
 	 * Reports number of nanoseconds that have elapsed so far
@@ -626,8 +697,6 @@ protected:
 	{
 	}
 
-	const std::exception_ptr &exception_ptr() const { return ex_; }
-
 protected:
 	/** Guard variable for serialising updates to the tasks_ member */
 	mutable std::mutex mutex_;
@@ -637,9 +706,11 @@ protected:
 	std::vector<std::function<void(future<T> &)>> tasks_;
 	/** The exception, if we failed */
 	std::exception_ptr ex_;
-	/** The exception, if we failed */
+	/** The exception as a string, if we failed */
 	std::string failure_reason_;
-	/** Label for his future */
+	/** What failed */
+	std::string failure_component_;
+	/** Label for this future */
 	std::string label_;
 	/** When we were created */
 	checkpoint created_;
