@@ -7,32 +7,40 @@ if(USE_CLANG)
 endif()
 enable_testing()
 
+add_subdirectory("rapidcheck")
+
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
 set (VERSION_PATCH 4)
 set (PROJECT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 set (PROJECT_VERSION_REVISION 2)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(warnings "-Wall -Wextra -Wconversion")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     set(warnings "/W4 /WX /EHsc")
 endif()
-if (NOT CONFIGURED_ONCE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${warnings}"
-        CACHE STRING "Flags used by the compiler during all build types." FORCE)
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${warnings}"
-        CACHE STRING "Flags used by the compiler during all build types." FORCE)
-endif()
+set(CMAKE_CXX_FLAGS "-std=c++11 ${warnings}")
 
 include_directories(include/)
 include_directories(deps/)
 
 add_executable(
 	future_tests
+	tests/main.cpp
+	tests/helpers.cpp
 	tests/future.cpp
 )
+
+#add_executable(
+#	qc_tests
+#	tests/main.cpp
+#	tests/qc.cpp
+#)
+#target_link_libraries(
+#	qc_tests
+#	rapidcheck
+#)
 
 if(THREADS_HAVE_PTHREAD_ARG)
 	target_compile_options(PUBLIC future_tests "-pthread")
@@ -53,10 +61,10 @@ if(CMAKE_THREAD_LIBS_INIT)
 	target_link_libraries(benchmark "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-add_executable(
-	standalone_tests
-	tests/standalone.cpp
-)
+#add_executable(
+#	standalone_tests
+#	tests/standalone.cpp
+#)
 
 install(
 	DIRECTORY include/
@@ -66,6 +74,7 @@ install(
 include (CTest)
 
 add_test (future_tests future_tests -r junit -o future_tests.xml)
+add_test (qc_tests qc_tests -r junit -o qc_tests.xml)
 
 include (InstallRequiredSystemLibraries)
 set (CPACK_PACKAGE_NAME "libcps-future")
