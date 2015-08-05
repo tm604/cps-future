@@ -11,9 +11,9 @@ add_subdirectory("rapidcheck")
 
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
-set (VERSION_PATCH 4)
+set (VERSION_PATCH 5)
 set (PROJECT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-set (PROJECT_VERSION_REVISION 2)
+set (PROJECT_VERSION_REVISION 1)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(warnings "-Wall -Wextra -Wconversion")
