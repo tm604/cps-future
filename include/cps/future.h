@@ -320,7 +320,7 @@ public:
 		case state::failed:
 			if(ex_) {
 				if(std::uncaught_exception()) {
-					std::cerr << "Want to rethrow our exception, but we are already in an exception, so that's probably a bad idea\n";
+					// std::cerr << "Want to rethrow our exception, but we are already in an exception, so that's probably a bad idea\n";
 					return value_;
 				} else {
 					std::rethrow_exception(ex_);

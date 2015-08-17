@@ -7,7 +7,7 @@ if(USE_CLANG)
 endif()
 enable_testing()
 
-add_subdirectory("rapidcheck")
+# add_subdirectory("rapidcheck")
 
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
@@ -25,12 +25,12 @@ set(CMAKE_CXX_FLAGS "-std=c++11 ${warnings}")
 include_directories(include/)
 include_directories(deps/)
 
-add_executable(
-	future_tests
-	tests/main.cpp
-	tests/helpers.cpp
-	tests/future.cpp
-)
+# add_executable(
+# 	future_tests
+# 	tests/main.cpp
+# 	tests/helpers.cpp
+# 	tests/future.cpp
+# )
 
 #add_executable(
 #	qc_tests
@@ -42,17 +42,17 @@ add_executable(
 #	rapidcheck
 #)
 
-if(THREADS_HAVE_PTHREAD_ARG)
-	target_compile_options(PUBLIC future_tests "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-	target_link_libraries(future_tests "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-
-add_executable(
-	benchmark
-	src/benchmark.cpp
-)
+#if(THREADS_HAVE_PTHREAD_ARG)
+#	target_compile_options(PUBLIC future_tests "-pthread")
+#endif()
+#if(CMAKE_THREAD_LIBS_INIT)
+#	target_link_libraries(future_tests "${CMAKE_THREAD_LIBS_INIT}")
+#endif()
+#
+#add_executable(
+#	benchmark
+#	src/benchmark.cpp
+#)
 
 if(THREADS_HAVE_PTHREAD_ARG)
 	target_compile_options(PUBLIC benchmark "-pthread")
@@ -73,8 +73,8 @@ install(
 
 include (CTest)
 
-add_test (future_tests future_tests -r junit -o future_tests.xml)
-add_test (qc_tests qc_tests -r junit -o qc_tests.xml)
+#add_test (future_tests future_tests -r junit -o future_tests.xml)
+#add_test (qc_tests qc_tests -r junit -o qc_tests.xml)
 
 include (InstallRequiredSystemLibraries)
 set (CPACK_PACKAGE_NAME "libcps-future")
