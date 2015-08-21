@@ -525,7 +525,7 @@ public:
 			f.failure_component_ = "->then callback";
 			f.ex_ = ex;
 			try {
-				throw ex;
+				std::rethrow_exception(ex);
 			} catch(const std::exception &e) {
 				f.failure_reason_ = e.what();
 			} catch(...) {
