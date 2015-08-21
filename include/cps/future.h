@@ -264,15 +264,17 @@ public:
 		return apply_state([&ex, &component](future<T>&f) {
 			f.failure_component_ = component;
 			try {
-				// std::cout << "Will throw!\n";
-				throw ex;
+				try {
+					throw ex;
+				} catch(...) {
+					f.ex_ = std::current_exception();
+					throw;
+				}
 			} catch(const std::exception &e) {
 				// std::cout << "Will catch!\n";
-				f.ex_ = std::current_exception();
 				f.failure_reason_ = e.what();
 			} catch(...) {
 				// std::cout << "Will catch!\n";
-				f.ex_ = std::current_exception();
 				f.failure_reason_ = "unknown";
 			}
 			// std::cout << "We're done!\n";
