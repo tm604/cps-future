@@ -484,9 +484,9 @@ public:
 					/* If we completed, call the function (exceptions will translate to f->fail)
 					 * and set up propagation */
 					// std::cout << "will call value in ->then handler for done status\n";
-					auto inner = ok(me.value())
-						->on_done([f](inner_type v) { f->done(v); })
-						->on_fail([f](const std::string &msg) { f->fail(msg); })
+					auto inner = ok(me.value());
+					inner->on_done([f](inner_type v) { f->done(v); })
+						->on_fail([f, inner](const std::string &msg) { f->fail_from(*inner); })
 						->on_cancel([f]() { f->fail("cancelled"); });
 					/* TODO abandon vs. cancel */
 					f->on_cancel([inner]() { inner->cancel(); });
@@ -498,7 +498,7 @@ public:
 						auto inner = it(me.ex_);
 						if(inner) {
 							inner->on_done([f](inner_type v) { f->done(v); })
-								->on_fail([f](const std::string &msg) { f->fail(msg); })
+								->on_fail([f, inner](const std::string &msg) { f->fail_from(*inner); })
 								->on_cancel([f]() { f->fail("cancelled"); });
 							/* TODO abandon vs. cancel */
 							f->on_cancel([inner]() { inner->cancel(); });
