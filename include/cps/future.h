@@ -767,6 +767,24 @@ resolved_future(T v)
 	return future<T>::create_shared()->done(v);
 }
 
+template<
+	typename T
+>
+std::shared_ptr<future<T>>
+make_future()
+{
+	return future<T>::create_shared();
+}
+
+template<
+	typename T
+>
+std::shared_ptr<future<T>>
+make_future(const std::string &label)
+{
+	return future<T>::create_shared(label);
+}
+
 /* Degenerate case - no futures => instant success */
 static inline
 std::shared_ptr<future<int>>
