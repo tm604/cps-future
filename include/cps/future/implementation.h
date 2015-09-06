@@ -179,7 +179,8 @@ public:
 	}
 
 	/** Add a handler to be called if this future fails */
-	std::shared_ptr<future<T>> on_fail(std::function<void(std::string)> code)
+	std::shared_ptr<future<T>>
+	on_fail(std::function<void(std::string)> code)
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_failed())
@@ -194,14 +195,20 @@ public:
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_failed() && f.exception_ptr()) {
+				bool matched = false;
+				T ex;
 				try {
 					std::rethrow_exception(f.exception_ptr());
 				} catch(const T &e) {
 					/* If our exception matches our expected type, handle it */
-					code(e);
+					matched = true;
+					ex = e;
 				} catch(...) {
 					/* ... but skip any other exception types */
+					matched = false;
 				}
+				if(matched)
+					code(ex);
 			}
 		});
 	}
@@ -246,7 +253,7 @@ public:
 		const std::string &component = u8"unknown"
 	)
 	{
-		// std::cout << "Calling string-handling fail()\n";
+		// std::cout << "Calling string-handling fail(" << ex << ")\n";
 		return fail(std::runtime_error(ex), component);
 	}
 
@@ -265,22 +272,19 @@ public:
 		const std::string &component = u8"unknown"
 	)
 	{
-		// std::cout << "Calling exception-handling fail()\n";
+		// std::cout << "Calling exception-handling fail(" << ex.what() << ")\n";
 		return apply_state([&ex, &component](future<T>&f) {
 			f.failure_component_ = component;
 			try {
-				try {
-					throw ex;
-				} catch(...) {
-					f.ex_ = std::current_exception();
-					throw;
-				}
+				throw ex;
 			} catch(const std::exception &e) {
-				// std::cout << "Will catch!\n";
+				// std::cout << "Will catch! " << e.what() << "\n";
 				f.failure_reason_ = e.what();
+				f.ex_ = std::current_exception();
 			} catch(...) {
-				// std::cout << "Will catch!\n";
+				// std::cout << "Will catch! (generic!)\n";
 				f.failure_reason_ = "unknown";
+				f.ex_ = std::current_exception();
 			}
 			// std::cout << "We're done!\n";
 		}, state::failed);
@@ -344,7 +348,6 @@ public:
 			} else {
 #endif
 				if(ex_) {
-					throw std::runtime_error("fake exception here");
 					std::rethrow_exception(ex_);
 				} else {
 					throw std::logic_error("no exception available");
@@ -402,13 +405,17 @@ public:
 	{
 		using return_type = decltype(ok(T()));
 		return [code](const std::exception_ptr &original) -> return_type {
+			bool matched = false;
+			std::string msg;
 			try {
 				std::rethrow_exception(original);
-			} catch(const std::runtime_error &e) {
-				return code(e.what());
+			} catch(const std::exception &e) {
+				matched = true;
+				msg = e.what();
 			} catch(...) {
-				return nullptr;
+				matched = false;
 			}
+			return matched ? code(msg) : nullptr;
 		};
 	}
 
@@ -444,13 +451,17 @@ public:
 		using return_type = decltype(ok(T()));
 		typedef typename std::remove_pointer<decltype(arg_type_for(&V::operator()))>::type exception_type;
 		return [code](const std::exception_ptr &original) -> return_type {
+			bool matched = false;
+			exception_type ex;
 			try {
 				std::rethrow_exception(original);
 			} catch(const exception_type &e) {
-				return code(e);
+				matched = true;
+				ex = e;
 			} catch(...) {
-				return nullptr;
+				matched = false;
 			}
+			return matched ? code(ex) : nullptr;
 		};
 	}
 
@@ -503,13 +514,15 @@ public:
 		 * available, we'll propagate the result onto f.
 		 */
 		auto f = future_type::create_shared();
+
+		/* Gather the parameter pack by mapping the disparate types through our callback handler */
 		std::vector<std::function<return_type(const std::exception_ptr &)>> items {
 			exception_hoisting_callback(
 				ok,
 				err
-				// std::forward<Args>(err)
 			)...
 		};
+
 		call_when_ready([f, ok, items](future<T> &me) {
 			/* Either callback could throw an exception. That's fine - it's even encouraged,
 			 * since passing a future around to ->fail on is not likely to be much fun when
@@ -548,6 +561,7 @@ public:
 					f->cancel();
 				}
 			} catch(...) {
+				// std::cerr << "a wyld exception appears\n";
 				auto ex = std::current_exception();
 				f->fail_exception_pointer(ex);
 			}
