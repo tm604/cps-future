@@ -692,6 +692,9 @@ protected:
 		std::vector<std::function<void(future<T> &)>> pending { };
 		{
 			std::lock_guard<std::mutex> guard { mutex_ };
+			if(state_ != state::pending)
+				throw std::logic_error("tried to resolve future twice");
+
 			code(*this);
 			pending = std::move(tasks_);
 			tasks_.clear();
