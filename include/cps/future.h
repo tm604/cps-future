@@ -9,6 +9,7 @@
 #include <chrono>
 #include <exception>
 #include <stdexcept>
+#include <sstream>
 
 /**
  * This flag controls whether it's possible to copy-construct or assign
@@ -589,13 +590,41 @@ public:
 		}
 	}
 
+	std::string time_string() const {
+		using namespace std::chrono;
+		auto e = elapsed();
+		std::stringstream ss;
+		auto d = duration_cast<duration<int, std::ratio<60*60*24>>>(e);
+		if(d.count() != 0)
+			ss << d.count() << "d";
+		auto h = duration_cast<hours>(e -= d);
+		if(h.count() != 0)
+			ss << h.count() << "h";
+		auto m = duration_cast<minutes>(e -= h);
+		if(m.count() != 0)
+			ss << m.count() << "m";
+		auto s = duration_cast<seconds>(e -= m);
+		if(s.count() != 0)
+			ss << s.count() << "s";
+		auto ms = duration_cast<milliseconds>(e -= s);
+		if(ms.count() != 0)
+			ss << ms.count() << "ms";
+		auto us = duration_cast<microseconds>(e -= ms);
+		if(us.count() != 0)
+			ss << us.count() << u8"µs";
+		auto ns = duration_cast<nanoseconds>(e -= us);
+		if(ns.count() != 0)
+			ss << ns.count() << u8"ns";
+		return ss.str();
+	}
+
 	/**
 	 * Returns a string description of the current test, of the form:
 	 *
-	 *     Future label (done), 14234ns
+	 *     Future label (done), 14ms234ns
 	 */
 	std::string describe() const {
-		return label_ + " (" + current_state() + "), " + std::to_string(elapsed().count()) + "ns";
+		return label_ + " (" + current_state() + "), " + time_string();
 	}
 
 protected:
