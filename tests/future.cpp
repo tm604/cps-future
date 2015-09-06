@@ -402,3 +402,83 @@ SCENARIO("we can remap errors via ->then", "[composed][shared]") {
 	}
 }
 
+struct CustomException : public runtime_error { using runtime_error::runtime_error; };
+
+SCENARIO("->then with multiple branches") {
+	GIVEN("a simple chained future") {
+		auto initial = cps::make_future<string>();
+		auto seq = initial->then([](string v) -> shared_ptr<future<string>> {
+			return cps::resolved_future<string>("original: " + v);
+		}, [](const CustomException &) {
+			return cps::resolved_future<string>("from a custom exception");
+		}, [](const std::runtime_error &) {
+			return cps::resolved_future<string>("from std::runtime_error");
+		}, [](const std::exception &) {
+			return cps::resolved_future<string>("from std::exception");
+		});
+		WHEN("we succeed") {
+			initial->done("valid");
+			THEN("things look good") {
+				CHECK(seq->value() == "original: valid");
+			}
+		}
+		WHEN("we fail with a generic exception") {
+			initial->fail(std::exception { });
+			THEN("we see that exception") {
+				CHECK(seq->value() == "from std::exception");
+			}
+		}
+		WHEN("we fail with a runtime error") {
+			initial->fail(std::runtime_error { "hello" });
+			THEN("we see that exception") {
+				CHECK(seq->value() == "from std::runtime_error");
+			}
+		}
+		WHEN("we fail with a custom exception") {
+			initial->fail(CustomException { "me too" });
+			THEN("we see that exception") {
+				CHECK(seq->value() == "from a custom exception");
+			}
+		}
+	}
+}
+
+SCENARIO("exception within ->then branches") {
+	GIVEN("a simple chained future") {
+		auto initial = cps::make_future<string>();
+		auto seq = initial->then([](string v) -> shared_ptr<future<string>> {
+			throw std::runtime_error("ok branch");
+		}, [](const CustomException &) -> shared_ptr<future<string>> {
+			throw std::runtime_error("custom exception branch");
+		}, [](const std::runtime_error &) -> shared_ptr<future<string>> {
+			throw std::runtime_error("runtime_error branch");
+		}, [](const std::exception &) -> shared_ptr<future<string>> {
+			throw std::runtime_error("exception branch");
+		});
+		WHEN("we succeed") {
+			initial->done("valid");
+			THEN("things look good") {
+				CHECK(seq->failure_reason() == "ok branch");
+			}
+		}
+		WHEN("we fail with a generic exception") {
+			initial->fail(std::exception { });
+			THEN("we see that exception") {
+				CHECK(seq->failure_reason() == "exception branch");
+			}
+		}
+		WHEN("we fail with a runtime error") {
+			initial->fail(std::runtime_error { "hello" });
+			THEN("we see that exception") {
+				CHECK(seq->failure_reason() == "runtime_error branch");
+			}
+		}
+		WHEN("we fail with a custom exception") {
+			initial->fail(CustomException { "me too" });
+			THEN("we see that exception") {
+				CHECK(seq->failure_reason() == "custom exception branch");
+			}
+		}
+	}
+}
+
