@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 
-PROJECT(libcps-future)
+project(libcps-future)
+
+set (VERSION_MAJOR 1)
+set (VERSION_MINOR 1)
+set (VERSION_PATCH 0)
+set (PROJECT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+set (PROJECT_VERSION_REVISION 1)
+
 enable_testing()
 
 set(RC_ENABLE_CATCH ON)
@@ -37,12 +44,6 @@ elseif(USE_UBSAN)
 endif()
 
 add_subdirectory("rapidcheck")
-
-set (VERSION_MAJOR 1)
-set (VERSION_MINOR 0)
-set (VERSION_PATCH 6)
-set (PROJECT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-set (PROJECT_VERSION_REVISION 1)
 
 include(set_cxx_norm.cmake)
 set_cxx_norm(${CXX_NORM_CXX14})
