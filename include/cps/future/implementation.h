@@ -196,12 +196,11 @@ public:
 	>
 	std::shared_ptr<future<T>>
 	fail(
-		const U ex,
-		const std::string &component = u8"unknown"
+		const U ex
 	)
 	{
 		// std::cout << "Calling string-handling fail(" << ex << ")\n";
-		return fail(std::runtime_error(ex), component);
+		return fail(std::runtime_error(ex));
 	}
 
 	/**
@@ -215,13 +214,11 @@ public:
 		>::type * = nullptr
 	>
 	std::shared_ptr<future<T>> fail(
-		const U ex,
-		const std::string &component = u8"unknown"
+		const U ex
 	)
 	{
 		// std::cout << "Calling exception-handling fail(" << ex.what() << ")\n";
-		return apply_state([&ex, &component](future<T>&f) {
-			f.failure_component_ = component;
+		return apply_state([&ex](future<T>&f) {
 			try {
 				throw ex;
 			} catch(const std::exception &e) {
@@ -247,7 +244,6 @@ public:
 			throw std::logic_error("future is not failed");
 
 		return apply_state([&f](future<T>&me) {
-			me.failure_component_ = f.failure_component();
 			try {
 				// std::cout << "Will throw!\n";
 				std::rethrow_exception(f.exception_ptr());
@@ -516,7 +512,6 @@ public:
 	fail_exception_pointer(const std::exception_ptr &ex)
 	{
 		return apply_state([&ex](future<T>&f) {
-			f.failure_component_ = "->then callback";
 			f.ex_ = ex;
 			try {
 				std::rethrow_exception(ex);
@@ -557,10 +552,12 @@ public:
 
 	/** Returns the label for this future */
 	const std::string &label() const { return label_; }
-	/** Returns the component which failed */
-	const std::string &failure_component() const { return failure_component_; }
-	/** Returns the component which failed */
-	const std::exception_ptr &exception_ptr() const { return ex_; }
+	/** Returns the exception pointer */
+	const std::exception_ptr &exception_ptr() const {
+		if(state_ != state::failed)
+			throw std::runtime_error("future is not failed");
+		return ex_;
+	}
 
 	/**
 	 * Reports number of nanoseconds that have elapsed so far
@@ -728,20 +725,18 @@ protected:
 	std::atomic<state> state_;
 	/** The list of tasks to run when we are resolved */
 	std::vector<std::function<void(future<T> &)>> tasks_;
-	/** The exception, if we failed */
-	std::exception_ptr ex_;
+	/** The final value of the future, if we completed successfully */
+	T value_;
 	/** The exception as a string, if we failed */
 	std::string failure_reason_;
-	/** What failed */
-	std::string failure_component_;
+	/** The exception, if we failed */
+	std::exception_ptr ex_;
 	/** Label for this future */
 	std::string label_;
 	/** When we were created */
 	checkpoint created_;
 	/** When we were marked ready */
 	checkpoint resolved_;
-	/** The final value of the future, if we completed successfully */
-	T value_;
 };
 
 template<
