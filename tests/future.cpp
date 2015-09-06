@@ -1,7 +1,6 @@
 #define FUTURE_TRACE 0
 #include <cps/future.h>
 
-#define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
 using namespace cps;
