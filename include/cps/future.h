@@ -347,6 +347,25 @@ public:
 		}
 	}
 
+	T value(std::error_code &ec) const {
+		// std::cout << "calling ->value on " << describe() << "\n";
+		/* Only read this once */
+		const state s { state_ };
+		switch(s) {
+		case state::pending:
+			ec = make_error_code(future_errc::is_pending);
+			return T();
+		case state::failed:
+			ec = make_error_code(future_errc::is_failed);
+			return T();
+		case state::cancelled:
+			ec = make_error_code(future_errc::is_cancelled);
+			return T();
+		default:
+			return value_;
+		}
+	}
+
 	template<
 		typename U,
 		typename V,
