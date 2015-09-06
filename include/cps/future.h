@@ -20,6 +20,8 @@
  */
 #define CAN_COPY_FUTURES 0
 
+#include <cps/future/error_code.h>
+
 namespace cps {
 
 template<typename C> class function_traits;
