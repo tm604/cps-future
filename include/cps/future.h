@@ -17,8 +17,8 @@
  */
 // #define UNCAUGHT_EXCEPTION_DEBUGGING
 
-/* Bring in our cps:;future_errc definitions */
 #include <cps/future/error_code.h>
+#include <cps/future/is_string.h>
 #include <cps/future/implementation.h>
 #include <cps/future/utils.h>
 
