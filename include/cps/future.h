@@ -136,6 +136,7 @@ public:
 		const std::string &label = u8"unlabelled future"
 	):state_(state::pending),
 	  label_(label),
+	  ex_(nullptr),
 	  created_(std::chrono::high_resolution_clock::now())
 	{
 	}
@@ -720,7 +721,7 @@ protected:
 	) noexcept
 	 :state_(std::move(src.state_)),
 	  tasks_(std::move(src.tasks_)),
-	  ex_(std::move(src.ex_)),
+	  ex_(src.ex_),
 	  label_(std::move(src.label_)),
 	  created_(std::move(src.created_)),
 	  resolved_(std::move(src.resolved_)),
