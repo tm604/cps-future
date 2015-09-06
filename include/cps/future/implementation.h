@@ -195,20 +195,14 @@ public:
 	{
 		return call_when_ready([code](future<T> &f) {
 			if(f.is_failed() && f.exception_ptr()) {
-				bool matched = false;
-				T ex;
 				try {
 					std::rethrow_exception(f.exception_ptr());
 				} catch(const T &e) {
 					/* If our exception matches our expected type, handle it */
-					matched = true;
-					ex = e;
+					code(e);
 				} catch(...) {
 					/* ... but skip any other exception types */
-					matched = false;
 				}
-				if(matched)
-					code(ex);
 			}
 		});
 	}
@@ -451,17 +445,13 @@ public:
 		using return_type = decltype(ok(T()));
 		typedef typename std::remove_pointer<decltype(arg_type_for(&V::operator()))>::type exception_type;
 		return [code](const std::exception_ptr &original) -> return_type {
-			bool matched = false;
-			exception_type ex;
 			try {
 				std::rethrow_exception(original);
 			} catch(const exception_type &e) {
-				matched = true;
-				ex = e;
+				return code(e);
 			} catch(...) {
-				matched = false;
 			}
-			return matched ? code(ex) : nullptr;
+			return nullptr;
 		};
 	}
 
