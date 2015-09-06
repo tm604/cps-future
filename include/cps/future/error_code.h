@@ -127,5 +127,14 @@ future_category::equivalent(
 
 }
 
+static const std::error_category &future_category = get_future_category();
+
+};
+
+namespace std {
+
+template <>
+struct is_error_code_enum<cps::future_errc> : public true_type { };
+
 };
 
