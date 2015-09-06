@@ -83,6 +83,11 @@ SCENARIO("future as a shared pointer", "[shared]") {
 	}
 }
 
+SCENARIO("error category is valid") {
+	REQUIRE(&cps::future_category != nullptr);
+	REQUIRE(cps::future_category.name() == std::string { "cps::future" });
+}
+
 SCENARIO("failed future handling", "[shared]") {
 	GIVEN("a failed future") {
 		auto f = future<int>::create_shared();
@@ -100,6 +105,21 @@ SCENARIO("failed future handling", "[shared]") {
 		WHEN("we call ->value") {
 			THEN("we get an exception") {
 				REQUIRE_THROWS(f->value());
+			}
+		}
+		WHEN("we call ->value with an error_code") {
+			std::error_code ec;
+			f->value(ec);
+			THEN("error code is true") {
+				REQUIRE(ec);
+			}
+			AND_THEN("it's failed") {
+				CHECK(ec == cps::future_errc::is_failed);
+			}
+			AND_THEN("it's in the right category") {
+				CHECK(ec == cps::future_errc::is_failed);
+				CHECK(ec.category() == cps::future_category);
+				CHECK(ec.category().name() == std::string { "cps::future" });
 			}
 		}
 	}
@@ -142,6 +162,21 @@ SCENARIO("cancelled future handling", "[shared]") {
 		WHEN("we call ->value") {
 			THEN("we get an exception") {
 				REQUIRE_THROWS(f->value());
+			}
+		}
+		WHEN("we call ->value with an error_code") {
+			std::error_code ec;
+			f->value(ec);
+			THEN("error code is true") {
+				REQUIRE(ec);
+			}
+			AND_THEN("it's cancelled") {
+				CHECK(ec == cps::future_errc::is_cancelled);
+			}
+			AND_THEN("it's in the right category") {
+				CHECK(ec == cps::future_errc::is_cancelled);
+				CHECK(ec.category() == cps::future_category);
+				CHECK(ec.category().name() == std::string { "cps::future" });
 			}
 		}
 	}
@@ -199,9 +234,9 @@ SCENARIO("needs_all", "[composed][shared]") {
 }
 
 SCENARIO("we can chain futures via ->then", "[composed][shared]") {
-	GIVEN("a simple ->then chain") {
-		auto f1 = cps::future<string>::create_shared();
-		auto f2 = cps::future<string>::create_shared();
+	GIVEN("a two-item ->then chain") {
+		auto f1 = cps::make_future<string>();
+		auto f2 = cps::make_future<string>();
 		bool called = false;
 		auto seq = f1->then([f2, &called](string v) -> shared_ptr<future<string>> {
 			ok(v == "input");
@@ -255,7 +290,10 @@ SCENARIO("we can chain futures via ->then", "[composed][shared]") {
 			}
 		}
 	}
-	GIVEN("a simple ->then chain with else handler") {
+}
+
+SCENARIO("we can remap errors via ->then", "[composed][shared]") {
+	GIVEN("a simple ->then chain with std::exception handler") {
 		auto initial = cps::future<string>::create_shared();
 		auto success = cps::future<string>::create_shared();
 		auto failure = cps::future<string>::create_shared();
@@ -265,7 +303,7 @@ SCENARIO("we can chain futures via ->then", "[composed][shared]") {
 			ok(v == "input");
 			called = true;
 			return success;
-		}, [failure, &errored](string) {
+		}, [failure, &errored](const std::exception &) {
 			errored = true;
 			return failure;
 		});
