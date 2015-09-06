@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
 #include <string>
-#include <cps/future.h>
+#include <cps/future/is_string.h>
 
 SCENARIO("our template helper can identify strings") {
 	WHEN("we have a string") {
