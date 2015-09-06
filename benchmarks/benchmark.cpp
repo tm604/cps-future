@@ -11,6 +11,7 @@ int
 main(void)
 {
 	auto start = std::chrono::high_resolution_clock::now();
+	std::cout << "A future<int> is " << sizeof(cps::future<int>) << " bytes, and future<string> is " << sizeof(cps::future<std::string>) << " bytes" << std::endl;
 	const int count = 100000;
 	auto f2 = future<std::string>::create_shared();
 	for(int i = 0; i < count; ++i) {
