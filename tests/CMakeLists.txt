@@ -5,6 +5,7 @@ add_executable(
 	main.cpp
 	is_string.cpp
 	future.cpp
+	chained.cpp
 	utils.cpp
 )
 
