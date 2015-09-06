@@ -1,13 +1,42 @@
 cmake_minimum_required(VERSION 2.8)
 
 PROJECT(libcps-future)
-option(USE_CLANG "build application with clang" OFF)
-if(USE_CLANG)
-	set(CMAKE_CXX_COMPILER "/usr/bin/clang++-3.6")
-endif()
 enable_testing()
 
-# add_subdirectory("rapidcheck")
+set(RC_ENABLE_CATCH ON)
+
+option(USE_CLANG "build application with clang" OFF)
+if(USE_CLANG)
+	set(CMAKE_CXX_COMPILER "/usr/bin/clang++-3.7")
+endif()
+
+option(USE_CSDBG "build application with csdbg" OFF)
+
+if(USE_CSDBG)
+	add_definitions(
+		-fPIC -g
+		-finstrument-functions
+		-finstrument-functions-exclude-file-list=/usr/include
+		-finstrument-functions-exclude-file-list=iostream
+		-finstrument-functions-exclude-file-list=ios
+		-finstrument-functions-exclude-file-list=istream
+		-finstrument-functions-exclude-file-list=ostream
+		-finstrument-functions-exclude-file-list=csdbg
+	)
+endif()
+
+option(USE_TSAN "thread sanitizer" OFF)
+option(USE_ASAN "address sanitizer" OFF)
+option(USE_UBSAN "undefined behaviour sanitizer" OFF)
+if(USE_TSAN)
+	add_definitions(-fsanitize=thread)
+elseif(USE_ASAN)
+	add_definitions(-fsanitize=address)
+elseif(USE_UBSAN)
+	add_definitions(-fsanitize=undefined)
+endif()
+
+add_subdirectory("rapidcheck")
 
 set (VERSION_MAJOR 1)
 set (VERSION_MINOR 0)
@@ -15,51 +44,14 @@ set (VERSION_PATCH 6)
 set (PROJECT_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 set (PROJECT_VERSION_REVISION 1)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set(warnings "-Wall -Wextra -Wconversion")
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    set(warnings "/W4 /WX /EHsc")
-endif()
-set(CMAKE_CXX_FLAGS "-std=c++11 ${warnings}")
+include(set_cxx_norm.cmake)
+set_cxx_norm(${CXX_NORM_CXX14})
 
-include_directories(include/)
-include_directories(deps/)
+include_directories(include)
+include_directories(deps)
 
-# add_executable(
-# 	future_tests
-# 	tests/main.cpp
-# 	tests/helpers.cpp
-# 	tests/future.cpp
-# )
-
-#add_executable(
-#	qc_tests
-#	tests/main.cpp
-#	tests/qc.cpp
-#)
-#target_link_libraries(
-#	qc_tests
-#	rapidcheck
-#)
-
-#if(THREADS_HAVE_PTHREAD_ARG)
-#	target_compile_options(PUBLIC future_tests "-pthread")
-#endif()
-#if(CMAKE_THREAD_LIBS_INIT)
-#	target_link_libraries(future_tests "${CMAKE_THREAD_LIBS_INIT}")
-#endif()
-#
-#add_executable(
-#	benchmark
-#	src/benchmark.cpp
-#)
-
-if(THREADS_HAVE_PTHREAD_ARG)
-	target_compile_options(PUBLIC benchmark "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-	target_link_libraries(benchmark "${CMAKE_THREAD_LIBS_INIT}")
-endif()
+add_subdirectory(tests)
+add_subdirectory(benchmarks)
 
 #add_executable(
 #	standalone_tests
@@ -70,11 +62,6 @@ install(
 	DIRECTORY include/
 	DESTINATION include
 )
-
-include (CTest)
-
-#add_test (future_tests future_tests -r junit -o future_tests.xml)
-#add_test (qc_tests qc_tests -r junit -o qc_tests.xml)
 
 include (InstallRequiredSystemLibraries)
 set (CPACK_PACKAGE_NAME "libcps-future")
