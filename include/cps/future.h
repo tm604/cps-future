@@ -47,7 +47,8 @@ template<typename U> typename function_traits<U>::arg_type* arg_type_for(U);
  * * char
  *
  * That last one might not be entirely obvious or ideal, but for our purposes
- * (string / exception differentiation) it's acceptable.
+ * (string / exception differentiation) it's hopefully more acceptable than leaving
+ * it out.
  */
 template<typename U>
 class is_string : public std::integral_constant<
@@ -87,7 +88,12 @@ public:
 
 	using checkpoint = std::chrono::high_resolution_clock::time_point;
 
-	enum class state { pending, done, failed, cancelled };
+	enum class state {
+		pending,
+		done,
+		failed,
+		cancelled
+	};
 
 	class fail_exception : public std::runtime_error {
 	public:
