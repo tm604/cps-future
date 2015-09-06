@@ -5292,10 +5292,21 @@ namespace Catch {
         }
 
         virtual void sectionEnded( SectionInfo const& info, Counts const& prevAssertions, double _durationInSeconds ) {
+			/**!
+			 * FIXME When uncaught_exception() returns true, this causes an
+			 * infinite loop. Therefore we ignore it here - if we have an exception,
+			 * let things fail. If we didn't really have one or it's being handled
+			 * satisfactorily elsewhere, then pushing this back onto the unfinished
+			 * list is going to do more harm than good.
+			 *
+			 * Somewhat related: http://www.gotw.ca/gotw/047.htm
+			 */
+#if 0
             if( std::uncaught_exception() ) {
                 m_unfinishedSections.push_back( UnfinishedSections( info, prevAssertions, _durationInSeconds ) );
                 return;
             }
+#endif
 
             Counts assertions = m_totals.assertions - prevAssertions;
             bool missingAssertions = testForMissingAssertions( assertions );
