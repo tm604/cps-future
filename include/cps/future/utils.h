@@ -14,9 +14,8 @@ public:
 	{
 	}
 
-	std::pair<bool, T> next() {
-		std::error_code ec;
-		auto n = code_(ec);
+	T next(std::error_code &ec) {
+		return code_(ec);
 	}
 
 private:
@@ -26,20 +25,19 @@ private:
 
 template<typename T>
 generator<T>
-foreach(std::vector<T> &&items)
+foreach(std::vector<T> items)
 {
 	size_t idx = 0;
 	return generator<T> {
-		[idx = idx, items = std::move(items)](std::error_code ec) mutable -> T {
-			if(idx >= items.size) {
+		[idx = idx, items = std::move(items)](std::error_code &ec) mutable -> T {
+			if(idx >= items.size()) {
 				ec = make_error_code(future_errc::no_more_items);
-				return;
+				return T();
 			}
 			return items[idx++];
 		}
 	};
 }
-
 
 /* Degenerate case - no futures => instant success */
 static inline
