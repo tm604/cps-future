@@ -485,10 +485,6 @@ public:
 		 */
 		U ok,
 		Args... err
-		/* This one's easy - it must return the same type as ok(), and we allow
-		 * default no-op here too
-		 */
-		// std::function<decltype(ok(T()))(const std::string &)> err = nullptr
 	) -> decltype(ok(T()))
 	{
 		/* We extract the type returned by the callback in stages, in a vain
