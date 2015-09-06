@@ -23,7 +23,7 @@ namespace cps {
 /**
  */
 template<typename T>
-class future:public std::enable_shared_from_this<future<T>> {
+class future {
 
 public:
 	/* Probably not very useful since the API is returning shared_ptr all over the shop */
@@ -34,7 +34,11 @@ public:
 	}
 	static std::shared_ptr<future<T>> create_shared(
 		const std::string &label = u8"unlabelled future"
-	) { return std::make_shared<future<T>>(label); }
+	) {
+		auto p = std::make_shared<future<T>>(label);
+		p->shared(p);
+		return p;
+	}
 
 	using checkpoint = std::chrono::high_resolution_clock::time_point;
 
@@ -91,6 +95,7 @@ public:
 	future(
 		const std::string &label = u8"unlabelled future"
 	):state_(state::pending),
+	  weak_ptr_(),
 	  label_(label),
 	  ex_(nullptr),
 	  created_(std::chrono::high_resolution_clock::now())
@@ -104,12 +109,31 @@ public:
 
 	/** Returns the shared_ptr associated with this instance */
 	std::shared_ptr<future<T>>
-	ptr() const
+	shared()
 	{
 		/* Member function is from a dependent base so give the name lookup a nudge
 		 * in the right (this->) direction
 		 */
-		return this->shared_from_this();
+		std::lock_guard<std::mutex> guard { mutex_ };
+		auto p = weak_ptr_.lock();
+		if(p)
+			return p;
+
+		p = std::shared_ptr<future<T>>(this);
+		weak_ptr_ = p;
+		return p;
+	}
+
+	/** Returns the shared_ptr associated with this instance */
+	std::shared_ptr<future<T>>
+	shared(std::shared_ptr<future<T>> p)
+	{
+		/* Member function is from a dependent base so give the name lookup a nudge
+		 * in the right (this->) direction
+		 */
+		std::lock_guard<std::mutex> guard { mutex_ };
+		weak_ptr_ = std::move(p);
+		return p;
 	}
 
 	/** Add a handler to be called when this future is marked as ready */
@@ -635,7 +659,7 @@ protected:
 			}
 		}
 		if(ready) code(*this);
-		return this->shared_from_this();
+		return shared();
 	}
 
 	/**
@@ -652,7 +676,7 @@ protected:
 				[&code](const std::function<void(future<T> &)> &it) { return code == it; }
 			)
 		);
-		return this->shared_from_this();
+		return shared();
 	}
 
 	/**
@@ -675,11 +699,12 @@ protected:
 
 			resolved_ = std::chrono::high_resolution_clock::now();
 			state_ = s;
+			/* Might want to consider something like compare_exchange_strong(...) if we need a mutex-free version in future:? */
 		}
 		for(auto &v : pending) {
 			v(*this);
 		}
-		return this->shared_from_this();
+		return shared();
 	}
 
 //#if CAN_COPY_FUTURES
@@ -691,6 +716,7 @@ protected:
 		const future<T> &src,
 		const std::lock_guard<std::mutex> &
 	):state_(src.state_.load()),
+	  weak_ptr_(src.weak_ptr_),
 	  tasks_(src.tasks_),
 	  ex_(src.ex_),
 	  label_(src.label_),
@@ -709,6 +735,7 @@ protected:
 		const std::lock_guard<std::mutex> &
 	) noexcept
 	 :state_(std::move(src.state_)),
+	  weak_ptr_(std::move(src.weak_ptr_)),
 	  tasks_(std::move(src.tasks_)),
 	  ex_(src.ex_),
 	  label_(std::move(src.label_)),
@@ -723,6 +750,8 @@ protected:
 	mutable std::mutex mutex_;
 	/** Current future state. Atomic so we can get+set from multiple threads without needing a full lock */
 	std::atomic<state> state_;
+	/** Track current shared_ptr, for cases where we act as a shared_ptr (i.e. most of the time) */
+	mutable std::weak_ptr<future<T>> weak_ptr_;
 	/** The list of tasks to run when we are resolved */
 	std::vector<std::function<void(future<T> &)>> tasks_;
 	/** The final value of the future, if we completed successfully */
