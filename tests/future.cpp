@@ -251,12 +251,6 @@ SCENARIO("we can chain futures via ->then", "[composed][shared]") {
 			AND_THEN("->then result is unchanged") {
 				ok(!seq->is_ready());
 			}
-		}
-		WHEN("dependent and inner future complete") {
-			f1->done("input");
-			THEN("our callback was called") {
-				ok(called);
-			}
 			f2->done("inner");
 			AND_THEN("->then is now complete") {
 				ok(seq->is_done());
@@ -265,18 +259,64 @@ SCENARIO("we can chain futures via ->then", "[composed][shared]") {
 				ok(seq->value() == "inner");
 			}
 		}
+	}
+}
+
+SCENARIO("we can handle dependent failure in ->then", "[composed][shared]") {
+	GIVEN("a two-item ->then chain") {
+		auto f1 = cps::make_future<string>();
+		auto f2 = cps::make_future<string>();
+		bool called = false;
+		auto seq = f1->then([f2, &called](string v) -> shared_ptr<future<string>> {
+			ok(v == "input");
+			called = true;
+			return f2;
+		});
 		WHEN("dependent fails") {
 			f1->fail("breakage");
 			THEN("our callback was not called") {
 				ok(!called);
-			}
-			AND_THEN("->then result is also failed") {
-				ok(seq->is_failed());
-			}
-			AND_THEN("failure reason was propagated") {
-				ok(seq->failure_reason() == f1->failure_reason());
+				AND_THEN("->then result is also failed") {
+					ok(seq->is_failed());
+					ok(seq->failure_reason() == f1->failure_reason());
+				}
 			}
 		}
+	}
+}
+
+SCENARIO("we can handle cancellation in ->then", "[composed][shared]") {
+	GIVEN("a two-item ->then chain") {
+		auto f1 = cps::make_future<string>();
+		auto f2 = cps::make_future<string>();
+		bool called = false;
+		auto seq = f1->then([f2, &called](string v) -> shared_ptr<future<string>> {
+			ok(v == "input");
+			called = true;
+			return f2;
+		});
+		WHEN("dependent is cancelled") {
+			f1->cancel();
+			THEN("our callback was not called") {
+				ok(!called);
+			}
+			AND_THEN("->then result is also cancelled") {
+				ok(seq->is_cancelled());
+			}
+		}
+	}
+}
+
+SCENARIO("we can cancel the future returned by ->then", "[composed][shared]") {
+	GIVEN("a two-item ->then chain") {
+		auto f1 = cps::make_future<string>();
+		auto f2 = cps::make_future<string>();
+		bool called = false;
+		auto seq = f1->then([f2, &called](string v) -> shared_ptr<future<string>> {
+			ok(v == "input");
+			called = true;
+			return f2;
+		});
 		WHEN("sequence future is cancelled") {
 			seq->cancel();
 			THEN("our callback was not called") {
