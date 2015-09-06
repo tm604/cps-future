@@ -3,8 +3,9 @@ include (CTest)
 add_executable(
 	future_tests
 	main.cpp
-	helpers.cpp
+	is_string.cpp
 	future.cpp
+	utils.cpp
 )
 
 add_executable(
