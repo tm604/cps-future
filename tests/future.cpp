@@ -119,7 +119,7 @@ SCENARIO("failed future handling", "[shared]") {
 			AND_THEN("it's in the right category") {
 				CHECK(ec == cps::future_errc::is_failed);
 				CHECK(ec.category() == cps::future_category);
-				CHECK(ec.category().name() == std::string { "cps::future" });
+				CHECK(std::string { ec.category().name() } == std::string { "cps::future" });
 			}
 		}
 	}
