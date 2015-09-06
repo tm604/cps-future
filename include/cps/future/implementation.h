@@ -181,8 +181,8 @@ public:
 	/** Mark this future as done */
 	std::shared_ptr<future<T>> done(T v)
 	{
-		return apply_state([&v](future<T>&f) {
-			f.value_ = v;
+		return apply_state([v = std::move(v)](future<T>&f) {
+			f.value_ = std::move(v);
 		}, state::done);
 	}
 
