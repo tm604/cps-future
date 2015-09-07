@@ -594,7 +594,13 @@ public:
 	 * Returns the current future state, as a string.
 	 */
 	std::string current_state() const {
-		state s = state_;
+		return state_string(state_);
+	}
+
+	/**
+	 * Returns a description for the given state.
+	 */
+	static std::string state_string(state s) {
 		switch(s) {
 		case state::pending: return u8"pending";
 		case state::failed: return u8"failed";
@@ -693,7 +699,7 @@ protected:
 		{
 			std::lock_guard<std::mutex> guard { mutex_ };
 			if(state_ != state::pending)
-				throw std::logic_error("tried to resolve future twice");
+				throw std::logic_error("tried to resolve future twice, wanted " + state_string(s) + ":" + describe());
 
 			code(*this);
 			pending = std::move(tasks_);
